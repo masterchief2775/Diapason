@@ -1,0 +1,40 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Diapason",
+      "hasCanvas": false,
+      "bodyTextLen": 1282,
+      "bodyTextHash": "3d7fd9f7f2dc019496dd14a28a48e81ef64e7ef58848994abf1a90bd388b2c55",
+      "bodyTextPrefix": "Diapason Accueil Manche Parcours Studio Oreille Jeux Carnet BIEN",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Diapason",
+      "hasCanvas": false,
+      "bodyTextLen": 1270,
+      "bodyTextHash": "f51e946863a0c659576998c5085b689321eceb542e3769b64f5b842ae73094a4",
+      "bodyTextPrefix": "Diapason BIENVENUE De zéro à compositeur, une leçon à la fois. D",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": true,
+  "baselineReasons": [
+    "desktop: body text changed (1053 -> 1282 chars, hash mismatch)"
+  ]
+}

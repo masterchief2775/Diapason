@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Diapason",
+      "hasCanvas": false,
+      "bodyTextLen": 1053,
+      "bodyTextHash": "37b534447f0b5d69718b2a3b97a8c4f2e45abe9a0b34f061af87c9853051e75b",
+      "bodyTextPrefix": "Diapason Accueil Manche Parcours Studio Oreille Jeux Carnet FOND",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Diapason",
+      "hasCanvas": false,
+      "bodyTextLen": 1270,
+      "bodyTextHash": "f51e946863a0c659576998c5085b689321eceb542e3769b64f5b842ae73094a4",
+      "bodyTextPrefix": "Diapason BIENVENUE De zéro à compositeur, une leçon à la fois. D",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
