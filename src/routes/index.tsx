@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { Page } from "@/features/page";
 import { LESSONS, LESSON_ORDER, PHASES, lessonById } from "@/lib/curriculum";
+import { dailyChallenge } from "@/lib/gamification";
 import { useProgress } from "@/lib/progress";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -25,6 +26,9 @@ function Home() {
 
   const nextId = LESSON_ORDER.find((id) => !completed.includes(id)) ?? LESSON_ORDER[0];
   const next = lessonById(nextId);
+  const level = useProgress((s) => s.level);
+  const defi = dailyChallenge();
+  const defiDone = useProgress((s) => s.challenges[defi.seed] ?? 0);
 
   return (
     <Page>
@@ -81,13 +85,23 @@ function Home() {
       )}
 
       <div className="mb-10 grid gap-3 sm:grid-cols-2">
+        <Link to="/defi" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
+          <p className="m-0 font-mono text-xs text-subtle">Défi du jour · {defi.label}</p>
+          <p className="m-0 font-display text-lg">{defiDone > 0 ? `Fait à ${defiDone} % — retenter ?` : "5 questions, même seed pour tous"}</p>
+        </Link>
+        {!level && (
+          <Link to="/diagnostic" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
+            <p className="m-0 font-mono text-xs text-subtle">Diagnostic</p>
+            <p className="m-0 font-display text-lg">Calibrer mon niveau en 2 minutes</p>
+          </Link>
+        )}
         <Link to="/studio" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
           <p className="m-0 font-mono text-xs text-subtle">Studio</p>
           <p className="m-0 font-display text-lg">Compose une grille et une mélodie</p>
         </Link>
         <Link to="/oreille" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
           <p className="m-0 font-mono text-xs text-subtle">Oreille</p>
-          <p className="m-0 font-display text-lg">Reconnaître les intervalles</p>
+          <p className="m-0 font-display text-lg">Intervalles, accords, grilles, modes</p>
         </Link>
         <Link to="/jeux" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
           <p className="m-0 font-mono text-xs text-subtle">Jeux</p>
@@ -96,6 +110,14 @@ function Home() {
         <Link to="/manche" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
           <p className="m-0 font-mono text-xs text-subtle">Explorer</p>
           <p className="m-0 font-display text-lg">Manche interactif</p>
+        </Link>
+        <Link to="/examens" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
+          <p className="m-0 font-mono text-xs text-subtle">Examens</p>
+          <p className="m-0 font-display text-lg">Valider chaque phase à 60 %</p>
+        </Link>
+        <Link to="/progression" className="rounded-lg border border-line bg-surface p-5 text-fg no-underline">
+          <p className="m-0 font-mono text-xs text-subtle">Progrès</p>
+          <p className="m-0 font-display text-lg">Badges, titre, mastery</p>
         </Link>
       </div>
 

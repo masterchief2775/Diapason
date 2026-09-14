@@ -126,6 +126,17 @@ export const LESSONS: LessonDef[] = [
     ],
   },
   {
+    id: "voicings",
+    title: "Voicings guitare et renversements",
+    phase: 2,
+    kind: "interactive",
+    summary: "CAGED, drop-2, basse qui change tout.",
+    intro: [
+      "Le même accord sonne différemment selon la corde de basse et l'octave : c'est le voicing.",
+      "Le CAGED donne 5 formes mobiles. Les renversements changent la basse (fondamentale, tierce, quinte). Le drop-2 (jazz) descend la 2e voix d'une octave pour aérer.",
+    ],
+  },
+  {
     id: "harmonie-fonc",
     title: "Harmonie fonctionnelle complète",
     phase: 3,
@@ -332,4 +343,225 @@ export const QUIZZES: Record<string, Mcq[]> = {
       explain: "La forme verse/chorus avec bridge reste le standard.",
     },
   ],
+  "gamme-maj": [
+    {
+      q: "Le schéma de la gamme majeure, c'est…",
+      options: ["T–T–½–T–T–T–½", "T–½–T–T–½–T–T", "½–T–T–T–T–T–½", "T–T–T–½–T–T–½"],
+      answer: 0,
+      explain: "Deux tons, un demi, trois tons, un demi. En Do : Do Ré Mi Fa Sol La Si.",
+    },
+    {
+      q: "En Sol majeur, le 7e degré est…",
+      options: ["Fa", "Fa#", "Sol", "Mi"],
+      answer: 1,
+      explain: "Sol La Si Do Ré Mi Fa# : la sensible est à un demi-ton de la tonique.",
+    },
+    {
+      q: "Les triades I, IV, V en majeur sont…",
+      options: ["toutes mineures", "I majeur, IV et V mineurs", "toutes majeures", "toutes diminuées"],
+      answer: 2,
+      explain: "I, IV et V sont majeurs : ils portent à eux seuls des centaines de chansons.",
+    },
+    {
+      q: "Un ton, c'est…",
+      options: ["1 case", "2 cases", "3 cases", "4 cases"],
+      answer: 1,
+      explain: "Un ton = 2 demi-tons = 2 cases sur une corde.",
+    },
+  ],
+  gammes: [
+    {
+      q: "La mineure naturelle, c'est le mode…",
+      options: ["dorien", "éolien", "phrygien", "locrien"],
+      answer: 1,
+      explain: "L'éolien (6e mode) : 1 2 ♭3 4 5 ♭6 ♭7.",
+    },
+    {
+      q: "La mineure harmonique hausse…",
+      options: ["la 6e", "la 7e", "la 3e", "la 2e"],
+      answer: 1,
+      explain: "La 7e haussée crée une vraie dominante (V majeur) et la seconde augmentée typique.",
+    },
+    {
+      q: "La mineure mélodique (montante) hausse…",
+      options: ["la 6e et la 7e", "la 2e et la 4e", "la 3e", "rien"],
+      answer: 0,
+      explain: "6e et 7e majeures à la montée, retour naturel à la descente (classique).",
+    },
+    {
+      q: "Le relatif mineur de Do majeur est…",
+      options: ["La mineur", "Mi mineur", "Ré mineur", "Sol mineur"],
+      answer: 0,
+      explain: "3 demi-tons plus bas (ou 6e degré) : La.",
+    },
+  ],
+  modes: [
+    {
+      q: "Le dorien, c'est un mineur avec…",
+      options: ["♭2", "6 majeure", "♯4", "♭7 majeure"],
+      answer: 1,
+      explain: "1 2 ♭3 4 5 6 ♭7 : la 6 majeure fait toute la couleur jazzy.",
+    },
+    {
+      q: "La note caractéristique du lydien est…",
+      options: ["la ♭7", "la ♯4", "la ♭2", "la 6 mineure"],
+      answer: 1,
+      explain: "1 2 3 ♯4 5 6 7 : la quarte augmentée rêveuse.",
+    },
+    {
+      q: "Le mixolydien convient sur…",
+      options: ["un accord maj7", "un accord 7 (dominant)", "un accord m7♭5", "un diminué"],
+      answer: 1,
+      explain: "1 2 3 4 5 6 ♭7 : la couleur du blues et de la funk.",
+    },
+    {
+      q: "Phrygien = mineur avec…",
+      options: ["♭2", "♯4", "6 majeure", "7 majeure"],
+      answer: 0,
+      explain: "La seconde mineure donne la couleur sombre/flamenco.",
+    },
+  ],
+  pentas: [
+    {
+      q: "La pentatonique mineure, c'est…",
+      options: ["1 2 3 5 6", "1 ♭3 4 5 ♭7", "1 3 5 7 9", "1 ♭2 4 5 ♭6"],
+      answer: 1,
+      explain: "Cinq notes sans demi-ton : le terrain de jeu du rock.",
+    },
+    {
+      q: "La gamme blues ajoute à la penta mineure…",
+      options: ["la 9e", "la ♭5", "la 6 majeure", "la 7 majeure"],
+      answer: 1,
+      explain: "La blue note ♭5 entre 4 et 5.",
+    },
+    {
+      q: "La pentatonique majeure et sa relative mineure sont décalées de…",
+      options: ["1 case", "2 cases", "3 cases", "5 cases"],
+      answer: 2,
+      explain: "Comme majeur/relatif : 3 demi-tons (ex. Do maj ↔ La min).",
+    },
+    {
+      q: "Sur un blues en La, la penta de base est…",
+      options: ["La majeur", "La mineure / blues", "Fa# mineure", "Do lydien"],
+      answer: 1,
+      explain: "La penta mineure de La + blue note, sur les 12 mesures.",
+    },
+  ],
+  cadences: [
+    {
+      q: "La cadence parfaite, c'est…",
+      options: ["IV–I", "V–I", "ii–IV", "vi–iii"],
+      answer: 1,
+      explain: "Dominante → tonique, point final le plus net.",
+    },
+    {
+      q: "La cadence plagale (Amen), c'est…",
+      options: ["V–I", "IV–I", "ii–V", "iii–vi"],
+      answer: 1,
+      explain: "Sous-dominante → tonique, conclusion douce.",
+    },
+    {
+      q: "La cadence rompue surprend avec…",
+      options: ["V–vi", "V–I", "IV–V", "I–IV"],
+      answer: 0,
+      explain: "La résolution attendue sur I est détournée vers vi.",
+    },
+    {
+      q: "Le ii–V–I est…",
+      options: ["une boucle pop", "le moteur du jazz", "un riff metal", "une gamme"],
+      answer: 1,
+      explain: "Sous-dominante mineure → dominante → tonique.",
+    },
+  ],
+  voicings: [
+    {
+      q: "Un 1er renversement met à la basse…",
+      options: ["la fondamentale", "la tierce", "la quinte", "la 7e"],
+      answer: 1,
+      explain: "3 – 5 – 1 : la tierce chante à la basse.",
+    },
+    {
+      q: "Le CAGED propose…",
+      options: ["4 gammes", "5 formes d'accords mobiles", "7 modes", "12 arpèges"],
+      answer: 1,
+      explain: "C, A, G, E, D : cinq gabarits qui couvrent tout le manche.",
+    },
+    {
+      q: "Un drop-2, c'est…",
+      options: ["sauter 2 cordes", "descendre la 2e voix d'une octave", "jouer 2 fois plus vite", "accorder 2 tons plus bas"],
+      answer: 1,
+      explain: "Technique jazz : on aère un accord fermé en descendant la 2e voix.",
+    },
+    {
+      q: "Changer seulement la basse d'un Do majeur (Mi à la basse) donne…",
+      options: ["le même son, rien ne change", "C/E, 1er renversement, couleur plus douce", "un accord diminué", "un autre accord"],
+      answer: 1,
+      explain: "Mêmes notes, basse différente : la conduite des voix change tout.",
+    },
+  ],
 };
+
+export const DIAGNOSTIC: Mcq[] = [
+  {
+    q: "Tu sais nommer les 6 cordes à vide ?",
+    options: ["Oui, sans hésiter", "À peu près", "Non, pas encore"],
+    answer: 0,
+    explain: "Mi La Ré Sol Si Mi (du grave à l'aigu).",
+  },
+  {
+    q: "Combien de demi-tons dans une octave ?",
+    options: ["7", "8", "12"],
+    answer: 2,
+    explain: "12 cases = 12 demi-tons.",
+  },
+  {
+    q: "Un accord majeur, c'est…",
+    options: ["1 – ♭3 – 5", "1 – 3 – 5", "1 – 3 – ♯5"],
+    answer: 1,
+    explain: "Fondamentale, tierce majeure, quinte juste.",
+  },
+  {
+    q: "La cadence V–I s'appelle…",
+    options: ["plagale", "parfaite", "rompue"],
+    answer: 1,
+    explain: "La résolution la plus nette.",
+  },
+  {
+    q: "Le ii–V–I appartient surtout au…",
+    options: ["metal", "jazz", "flamenco"],
+    answer: 1,
+    explain: "Le moteur harmonique du jazz.",
+  },
+  {
+    q: "Tu as déjà composé une grille complète ?",
+    options: ["Oui, plusieurs", "Une esquisse", "Jamais"],
+    answer: 0,
+    explain: "Le studio et le carnet sont faits pour ça.",
+  },
+];
+
+export type ExamDef = { id: string; title: string; range: string; questions: Mcq[]; unlockAt: number };
+
+export const EXAMS: ExamDef[] = [
+  {
+    id: "exam-fondations",
+    title: "Examen Fondations (0 → 20 %)",
+    range: "Après la leçon « Première gamme majeure »",
+    questions: [...QUIZZES["notes"], ...QUIZZES["gamme-maj"]].slice(0, 6),
+    unlockAt: 4,
+  },
+  {
+    id: "exam-harmonie",
+    title: "Examen Harmonie (20 → 45 %)",
+    range: "Après « Voicings et renversements »",
+    questions: [...QUIZZES["cadences"], ...QUIZZES["voicings"]].slice(0, 6),
+    unlockAt: 10,
+  },
+  {
+    id: "exam-expert",
+    title: "Examen Expert (45 → 100 %)",
+    range: "Après « Analyse harmonique »",
+    questions: [...QUIZZES["harmonie-fonc"], ...QUIZZES["analyse"]].slice(0, 6),
+    unlockAt: 13,
+  },
+];

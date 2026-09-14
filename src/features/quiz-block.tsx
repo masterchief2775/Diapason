@@ -6,17 +6,26 @@ import { cn } from "@/lib/utils";
 export function QuizBlock({
   questions,
   onDone,
+  onAnswers,
 }: {
   questions: Mcq[];
   onDone: (percent: number) => void;
+  onAnswers?: (answers: number[]) => void;
 }) {
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState<number[]>([]);
   const q = questions[i];
   const last = i + 1 >= questions.length;
 
   if (!q) return null;
+
+  const choose = (idx: number) => {
+    setPicked(idx);
+    setAnswers((a) => [...a, idx]);
+    if (idx === q.answer) setScore((s) => s + 1);
+  };
 
   return (
     <div>
@@ -37,10 +46,7 @@ export function QuizBlock({
               key={opt}
               type="button"
               disabled={picked !== null}
-              onClick={() => {
-                setPicked(idx);
-                if (idx === q.answer) setScore((s) => s + 1);
-              }}
+              onClick={() => choose(idx)}
               className={cn(
                 "rounded-md border px-4 py-3 text-left text-sm",
                 !show && "border-line bg-surface text-fg",
@@ -61,6 +67,7 @@ export function QuizBlock({
             onClick={() => {
               if (last) {
                 const nextScore = score;
+                onAnswers?.(answers);
                 onDone(Math.round((nextScore / questions.length) * 100));
               } else {
                 setI((n) => n + 1);

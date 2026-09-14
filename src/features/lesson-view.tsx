@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Fretboard, NoteSymbol } from "@/components/fretboard";
 import { BackLink, Button, Chip } from "@/components/ui";
 import { Page, Title } from "@/features/page";
@@ -8,18 +8,25 @@ import { QuizBlock, Recap } from "@/features/quiz-block";
 import { resumeAudio, playIntervalAscending, playChordNow, playClick, getAudioContext, playTone, freqForOffset } from "@/lib/audio";
 import { LESSONS, QUIZZES, lessonById } from "@/lib/curriculum";
 import {
+  CAGED,
   CHORD_QUALITIES,
   GENRES,
   INTERVALS,
+  INVERSIONS,
   MODES_MAJOR,
   NOTES,
   NOTE_VALUES,
+  PROGRESSION_LIBRARY,
   PROGRESSION_PRESETS,
   SCALES,
   TUNING,
+  buildMidiFile,
   degreeChord,
+  downloadBytes,
+  inversionVoicing,
   noteAt,
   shuffle,
+  suggestNextDegrees,
   type ModeKey,
 } from "@/lib/music";
 import { useProgress } from "@/lib/progress";
@@ -68,6 +75,7 @@ export function LessonView({ id }: { id: string }) {
       {id === "modes" && <ModesExercise onFinish={finish} />}
       {id === "pentas" && <PentaExercise onFinish={finish} />}
       {id === "cadences" && <CadenceExercise onFinish={finish} />}
+      {id === "voicings" && <VoicingsExercise onFinish={finish} />}
       {id === "modes-exo" && <ExoticExercise onFinish={finish} />}
       {id === "reharmo" && <ReharmoExercise onFinish={finish} />}
       {id === "melodie" && <MelodyMini onFinish={finish} />}
@@ -155,8 +163,7 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
 
   const go = () => {
     if (round + 1 >= total) {
-      const s = score + (fb === "ok" ? 0 : 0);
-      onFinish(Math.round(((fb === "ok" ? score : score) / total) * 100));
+      onFinish(Math.round((score / total) * 100));
       setPhase("recap");
     } else {
       setRound((r) => r + 1);
@@ -570,11 +577,58 @@ function MancheExercise({ onFinish }: { onFinish: (p: number) => void }) {
   );
 }
 
+/** Explorateur suivi d'un quiz de validation (60 % pour valider). */
+function ExploreThenQuiz({
+  quizId,
+  onFinish,
+  children,
+}: {
+  quizId: string;
+  onFinish: (p: number) => void;
+  children: ReactNode;
+}) {
+  const [step, setStep] = useState<"explore" | "quiz" | "recap">("explore");
+  const [pct, setPct] = useState(0);
+  const nav = useNavigate();
+  if (step === "explore") {
+    return (
+      <>
+        {children}
+        <Button className="mt-6" onClick={() => setStep("quiz")}>
+          Valider avec le quiz
+        </Button>
+      </>
+    );
+  }
+  if (step === "quiz") {
+    return (
+      <QuizBlock
+        questions={QUIZZES[quizId]}
+        onDone={(p) => {
+          setPct(p);
+          onFinish(p);
+          setStep("recap");
+        }}
+      />
+    );
+  }
+  return (
+    <Recap
+      score={pct}
+      total={0}
+      onRetry={() => setStep("quiz")}
+      onBack={() => nav({ to: "/parcours" })}
+      perfect="Validé. Direction la leçon suivante."
+      ok="Sous les 60 % : revois l'explorateur ci-dessus puis retente."
+    />
+  );
+}
+
 function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(0);
   const steps = [0, 2, 4, 5, 7, 9, 11];
   return (
-    <>
+    <ExploreThenQuiz quizId="gamme-maj" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
         Tonique → T T ½ T T T ½. Les accords I, IV, V se construisent sur les 1er, 4e et 5e degrés.
       </p>
@@ -591,7 +645,7 @@ function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <div className="mb-4">
         <Fretboard highlight={{ rootIndex: root, steps }} hear />
       </div>
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap gap-2">
         {[0, 3, 4].map((d) => {
           const ch = degreeChord(root, "majeure", d);
           return (
@@ -608,14 +662,7 @@ function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
           );
         })}
       </div>
-      <Button
-        onClick={() => {
-          onFinish(100);
-        }}
-      >
-        J'ai vu la gamme — marquer comme vue
-      </Button>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
@@ -624,7 +671,7 @@ function ScalesExplorer({ onFinish }: { onFinish: (p: number) => void }) {
   const [sid, setSid] = useState<"majeure" | "mineure" | "harm-min" | "mel-min">("mineure");
   const scale = SCALES.find((s) => s.id === sid)!;
   return (
-    <>
+    <ExploreThenQuiz quizId="gammes" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
         Compare majeure, mineure naturelle, harmonique (7e haussée) et mélodique (6e et 7e haussées).
       </p>
@@ -643,10 +690,7 @@ function ScalesExplorer({ onFinish }: { onFinish: (p: number) => void }) {
         ))}
       </div>
       <Fretboard highlight={{ rootIndex: root, steps: scale.steps }} hear />
-      <Button className="mt-6" onClick={() => onFinish(100)}>
-        Marquer comme vue
-      </Button>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
@@ -656,7 +700,7 @@ function ModesExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const modeRoot = (parent + [0, 2, 4, 5, 7, 9, 11][deg]) % 12;
   const steps = [0, 2, 4, 5, 7, 9, 11].map((s) => (s - [0, 2, 4, 5, 7, 9, 11][deg] + 12) % 12).sort((a, b) => a - b);
   return (
-    <>
+    <ExploreThenQuiz quizId="modes" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
         Même notes que Do majeur, centre déplacé. Écoute la couleur de chaque mode.
       </p>
@@ -671,10 +715,7 @@ function ModesExercise({ onFinish }: { onFinish: (p: number) => void }) {
         {NOTES[modeRoot]} {MODES_MAJOR[deg].name} — {MODES_MAJOR[deg].color}
       </p>
       <Fretboard highlight={{ rootIndex: modeRoot, steps }} hear />
-      <Button className="mt-6" onClick={() => onFinish(100)}>
-        Marquer comme vue
-      </Button>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
@@ -683,7 +724,7 @@ function PentaExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [sid, setSid] = useState<"penta-min" | "penta-maj" | "blues">("penta-min");
   const scale = SCALES.find((s) => s.id === sid)!;
   return (
-    <>
+    <ExploreThenQuiz quizId="pentas" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
         La pentatonique mineure et la majeure sont relatives (trois demi-tons). La blues ajoute la ♭5.
       </p>
@@ -702,10 +743,7 @@ function PentaExercise({ onFinish }: { onFinish: (p: number) => void }) {
         ))}
       </div>
       <Fretboard highlight={{ rootIndex: root, steps: scale.steps }} hear />
-      <Button className="mt-6" onClick={() => onFinish(100)}>
-        Marquer comme vue
-      </Button>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
@@ -722,7 +760,7 @@ function CadenceExercise({ onFinish }: { onFinish: (p: number) => void }) {
     });
   };
   return (
-    <>
+    <ExploreThenQuiz quizId="cadences" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
         Écoute les cadences dans n'importe quelle tonalité. V–I conclut, IV–I adoucit, ii–V–I est le moteur jazz.
       </p>
@@ -745,10 +783,7 @@ function CadenceExercise({ onFinish }: { onFinish: (p: number) => void }) {
           </button>
         ))}
       </div>
-      <Button className="mt-6" onClick={() => onFinish(100)}>
-        Marquer comme vue
-      </Button>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
@@ -779,6 +814,9 @@ function ExoticExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <Button className="mt-6" onClick={() => onFinish(100)}>
         Marquer comme vue
       </Button>
+      <p className="mt-3 max-w-xl text-xs leading-relaxed text-subtle">
+        Leçon d'exploration : pas de quiz bloquant ici, l'examen Expert validera l'ensemble.
+      </p>
     </>
   );
 }
@@ -826,6 +864,83 @@ function ReharmoExercise({ onFinish }: { onFinish: (p: number) => void }) {
         Marquer comme vue
       </Button>
     </>
+  );
+}
+
+function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
+  const [root, setRoot] = useState(0);
+  const [qid, setQid] = useState<(typeof CHORD_QUALITIES)[number]["id"]>("maj");
+  const [inv, setInv] = useState(0);
+  const quality = CHORD_QUALITIES.find((q) => q.id === qid)!;
+  const voicing = inversionVoicing(quality.formula, inv);
+  const bassNote = NOTES[(root + voicing[0]) % 12];
+
+  const playVoicing = async () => {
+    const ctx = await resumeAudio();
+    const now = ctx.currentTime + 0.05;
+    voicing.forEach((iv, i) => {
+      playTone(ctx, freqForOffset(root, iv), now + i * 0.12, 0.9, 0.14);
+    });
+    playTone(ctx, freqForOffset(root, voicing[0] - 12), now, 1.1, 0.18);
+  };
+
+  return (
+    <ExploreThenQuiz quizId="voicings" onFinish={onFinish}>
+      <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
+        Mêmes notes, basse différente : écoute comment le renversement change la couleur. Puis repère les 5 formes CAGED sur le manche.
+      </p>
+      <div className="mb-3 flex flex-wrap gap-6">
+        <div>
+          <p className="mb-2 font-mono text-[11px] text-subtle">Fondamentale</p>
+          <div className="flex max-w-xs flex-wrap gap-1.5">
+            {NOTES.map((n, i) => (
+              <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
+                {n}
+              </Chip>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 font-mono text-[11px] text-subtle">Qualité</p>
+          <div className="flex flex-wrap gap-1.5">
+            {CHORD_QUALITIES.filter((q) => q.formula.length === 3).map((q) => (
+              <Chip key={q.id} tone="sage" active={q.id === qid} onClick={() => setQid(q.id)}>
+                {q.label}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {INVERSIONS.map((v) => (
+          <Chip key={v.id} active={inv === v.id} onClick={() => setInv(v.id)}>
+            {v.label}
+          </Chip>
+        ))}
+      </div>
+      <p className="mb-3 text-sm text-muted">
+        {NOTES[root]} {quality.label.toLowerCase()} · {INVERSIONS[inv].label} · basse : {bassNote} · {INVERSIONS[inv].explain}
+      </p>
+      <div className="mb-3">
+        <Fretboard highlight={{ rootIndex: root, steps: quality.formula }} hear />
+      </div>
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={playVoicing}>
+          Écouter le voicing (arpège + basse)
+        </Button>
+      </div>
+      <div className="mb-2 grid gap-2 sm:grid-cols-2">
+        {CAGED.map((c) => (
+          <div key={c.id} className="rounded-md border border-line bg-surface p-3">
+            <p className="m-0 font-mono text-xs text-gold">
+              {c.id} · {c.label}
+            </p>
+            <p className="m-0 font-mono text-xs text-muted">{c.frets}</p>
+            <p className="mt-1 mb-0 text-xs text-subtle">{c.explain}</p>
+          </div>
+        ))}
+      </div>
+    </ExploreThenQuiz>
   );
 }
 
@@ -890,6 +1005,7 @@ export function CompositionInner({
   const savePiece = useProgress((s) => s.savePiece);
   const degrees = Array.from({ length: 7 }, (_, i) => degreeChord(keyRoot, mode, i));
   const scaleSteps = mode === "majeure" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
+  const suggestions = suggestNextDegrees(progression[progression.length - 1], mode);
 
   const playProgression = async () => {
     if (!progression.length) return;
@@ -908,6 +1024,30 @@ export function CompositionInner({
       window.setTimeout(() => setPlaying(i), i * dur * 1000);
     });
     window.setTimeout(() => setPlaying(-1), progression.length * dur * 1000);
+  };
+
+  /** Harmonisation auto : 1 note de l'accord par temps (fondamentale, tierce, quinte…). */
+  const harmonize = () => {
+    const m = Array<(number | null)>(8).fill(null);
+    progression.forEach((d, i) => {
+      if (i >= 8) return;
+      m[i] = d % 7;
+    });
+    setMelody(m);
+  };
+
+  const exportMidi = () => {
+    const bytes = buildMidiFile({ keyRoot, mode, progression, melody });
+    downloadBytes(bytes, `${(title || "morceau").replace(/\s+/g, "-").toLowerCase()}.mid`, "audio/midi");
+  };
+
+  const exportText = () => {
+    const lines = [
+      `${title || "Sans titre"} — ${NOTES[keyRoot]} ${mode}${genre ? ` · ${GENRES.find((g) => g.id === genre)?.label ?? genre}` : ""}`,
+      `Grille : ${progression.map((d) => `${degrees[d].numeral} (${NOTES[degrees[d].rootNoteIndex]}${degrees[d].quality.suffix})`).join(" – ")}`,
+      `Mélodie (degrés) : ${melody.map((v) => (v == null ? "–" : String(v + 1))).join(" ")}`,
+    ];
+    downloadBytes(new TextEncoder().encode(lines.join("\n")), `${(title || "morceau").replace(/\s+/g, "-").toLowerCase()}.txt`, "text/plain");
   };
 
   return (
@@ -1029,7 +1169,55 @@ export function CompositionInner({
           <Button variant="outline" onClick={() => setProgression([])}>
             Effacer accords
           </Button>
+          <Button variant="outline" onClick={harmonize} disabled={progression.length === 0}>
+            Harmoniser auto
+          </Button>
         </div>
+      </div>
+      <div className="mb-5 rounded-md border border-line bg-surface p-4">
+        <p className="mb-2 font-mono text-[11px] text-subtle">Assistant — que jouer après {progression.length ? degrees[progression[progression.length - 1]].numeral : "…"} ?</p>
+        <div className="flex flex-wrap gap-2">
+          {suggestions.map((s) => (
+            <button
+              key={s.degree}
+              type="button"
+              title={s.why}
+              onClick={() => progression.length < 8 && setProgression((p) => [...p, s.degree])}
+              className="rounded-sm border border-line bg-bg px-3 py-2 text-left text-xs text-muted hover:border-gold hover:text-fg"
+            >
+              <span className="font-display text-sm text-gold">{degrees[s.degree].numeral}</span> · {s.why}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mb-5 rounded-md border border-line bg-surface p-4">
+        <p className="mb-2 font-mono text-[11px] text-subtle">Bibliothèque — 12 grilles analysées</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {PROGRESSION_LIBRARY.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              title={p.analysis}
+              onClick={() => {
+                setProgression([...p.degrees]);
+                setMode(p.mode);
+              }}
+              className="rounded-sm border border-line bg-bg px-3 py-2 text-left hover:border-gold"
+            >
+              <span className="text-sm text-fg">{p.label}</span>{" "}
+              <span className="font-mono text-xs text-gold">{p.numerals}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-subtle">{p.analysis}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mb-5 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={exportMidi} disabled={progression.length === 0}>
+          Export MIDI
+        </Button>
+        <Button variant="outline" onClick={exportText} disabled={progression.length === 0}>
+          Export texte / tab
+        </Button>
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs text-subtle">

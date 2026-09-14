@@ -21,12 +21,19 @@ type ProgressState = {
   lastVisit: string | null;
   pieces: SavedPiece[];
   onboarded: boolean;
+  challenges: Record<string, number>;
+  bestScores: Record<string, number>;
+  level: string | null;
   hydrateStreak: () => void;
   completeLesson: (id: string, percent: number) => void;
   addXp: (n: number) => void;
   savePiece: (piece: Omit<SavedPiece, "id" | "createdAt">) => void;
   deletePiece: (id: string) => void;
   setOnboarded: () => void;
+  recordChallenge: (seed: string, pts: number) => void;
+  recordBest: (gameId: string, score: number) => void;
+  setScore: (id: string, percent: number) => void;
+  setLevel: (level: string) => void;
   isUnlocked: (id: string) => boolean;
   percent: () => number;
 };
@@ -51,6 +58,9 @@ export const useProgress = create<ProgressState>()(
       lastVisit: null,
       pieces: [],
       onboarded: false,
+      challenges: {},
+      bestScores: {},
+      level: null,
       hydrateStreak: () => {
         const t = todayISO();
         const { lastVisit, streak } = get();
@@ -85,6 +95,13 @@ export const useProgress = create<ProgressState>()(
       },
       deletePiece: (id) => set({ pieces: get().pieces.filter((p) => p.id !== id) }),
       setOnboarded: () => set({ onboarded: true }),
+      recordChallenge: (seed, pts) =>
+        set({ challenges: { ...get().challenges, [seed]: Math.max(get().challenges[seed] ?? 0, pts) }, xp: get().xp + pts }),
+      recordBest: (gameId, score) =>
+        set({ bestScores: { ...get().bestScores, [gameId]: Math.max(get().bestScores[gameId] ?? 0, score) } }),
+      setScore: (id, percent) =>
+        set({ scores: { ...get().scores, [id]: Math.max(get().scores[id] ?? 0, percent) } }),
+      setLevel: (level) => set({ level }),
       isUnlocked: (id) => {
         const idx = LESSON_ORDER.indexOf(id);
         if (idx <= 0) return true;

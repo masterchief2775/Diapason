@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Ear, Guitar, Home, Music2, NotebookPen, Target, Wand2 } from "lucide-react";
+import { ClipboardList, Ear, Flame, Guitar, Home, Music2, NotebookPen, Target, Trophy, Wand2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,18 @@ const NAV = [
   { to: "/studio", label: "Studio", icon: Wand2 },
   { to: "/oreille", label: "Oreille", icon: Ear },
   { to: "/jeux", label: "Jeux", icon: Music2 },
+  { to: "/defi", label: "Défi", icon: Flame },
+  { to: "/examens", label: "Examens", icon: ClipboardList },
+  { to: "/progression", label: "Progrès", icon: Trophy },
   { to: "/carnet", label: "Carnet", icon: NotebookPen },
+] as const;
+
+const MOBILE_NAV = [
+  { to: "/", label: "Accueil", icon: Home },
+  { to: "/parcours", label: "Parcours", icon: Target },
+  { to: "/studio", label: "Studio", icon: Wand2 },
+  { to: "/defi", label: "Défi", icon: Flame },
+  { to: "/progression", label: "Progrès", icon: Trophy },
 ] as const;
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -57,7 +68,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <main>{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 backdrop-blur md:hidden">
         <div className="flex justify-around px-1 py-2">
-          {NAV.slice(0, 5).map((item) => {
+          {MOBILE_NAV.map((item) => {
             const Icon = item.icon;
             const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
             return (

@@ -11,10 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CarnetRouteImport } from './routes/carnet'
+import { Route as DefiRouteImport } from './routes/defi'
+import { Route as DiagnosticRouteImport } from './routes/diagnostic'
+import { Route as ExamensRouteImport } from './routes/examens'
 import { Route as JeuxRouteImport } from './routes/jeux'
 import { Route as MancheRouteImport } from './routes/manche'
 import { Route as OreilleRouteImport } from './routes/oreille'
 import { Route as ParcoursRouteImport } from './routes/parcours'
+import { Route as ProgressionRouteImport } from './routes/progression'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as JeuxIdRouteImport } from './routes/jeux.$id'
 import { Route as LeconIdRouteImport } from './routes/lecon.$id'
@@ -27,6 +31,21 @@ const IndexRoute = IndexRouteImport.update({
 const CarnetRoute = CarnetRouteImport.update({
   id: '/carnet',
   path: '/carnet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DefiRoute = DefiRouteImport.update({
+  id: '/defi',
+  path: '/defi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiagnosticRoute = DiagnosticRouteImport.update({
+  id: '/diagnostic',
+  path: '/diagnostic',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamensRoute = ExamensRouteImport.update({
+  id: '/examens',
+  path: '/examens',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JeuxRoute = JeuxRouteImport.update({
@@ -49,6 +68,11 @@ const ParcoursRoute = ParcoursRouteImport.update({
   path: '/parcours',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProgressionRoute = ProgressionRouteImport.update({
+  id: '/progression',
+  path: '/progression',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -68,10 +92,14 @@ const LeconIdRoute = LeconIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/carnet': typeof CarnetRoute
+  '/defi': typeof DefiRoute
+  '/diagnostic': typeof DiagnosticRoute
+  '/examens': typeof ExamensRoute
   '/jeux': typeof JeuxRouteWithChildren
   '/manche': typeof MancheRoute
   '/oreille': typeof OreilleRoute
   '/parcours': typeof ParcoursRoute
+  '/progression': typeof ProgressionRoute
   '/studio': typeof StudioRoute
   '/jeux/$id': typeof JeuxIdRoute
   '/lecon/$id': typeof LeconIdRoute
@@ -79,10 +107,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/carnet': typeof CarnetRoute
+  '/defi': typeof DefiRoute
+  '/diagnostic': typeof DiagnosticRoute
+  '/examens': typeof ExamensRoute
   '/jeux': typeof JeuxRouteWithChildren
   '/manche': typeof MancheRoute
   '/oreille': typeof OreilleRoute
   '/parcours': typeof ParcoursRoute
+  '/progression': typeof ProgressionRoute
   '/studio': typeof StudioRoute
   '/jeux/$id': typeof JeuxIdRoute
   '/lecon/$id': typeof LeconIdRoute
@@ -91,10 +123,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/carnet': typeof CarnetRoute
+  '/defi': typeof DefiRoute
+  '/diagnostic': typeof DiagnosticRoute
+  '/examens': typeof ExamensRoute
   '/jeux': typeof JeuxRouteWithChildren
   '/manche': typeof MancheRoute
   '/oreille': typeof OreilleRoute
   '/parcours': typeof ParcoursRoute
+  '/progression': typeof ProgressionRoute
   '/studio': typeof StudioRoute
   '/jeux/$id': typeof JeuxIdRoute
   '/lecon/$id': typeof LeconIdRoute
@@ -104,10 +140,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/carnet'
+    | '/defi'
+    | '/diagnostic'
+    | '/examens'
     | '/jeux'
     | '/manche'
     | '/oreille'
     | '/parcours'
+    | '/progression'
     | '/studio'
     | '/jeux/$id'
     | '/lecon/$id'
@@ -115,10 +155,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/carnet'
+    | '/defi'
+    | '/diagnostic'
+    | '/examens'
     | '/jeux'
     | '/manche'
     | '/oreille'
     | '/parcours'
+    | '/progression'
     | '/studio'
     | '/jeux/$id'
     | '/lecon/$id'
@@ -126,10 +170,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/carnet'
+    | '/defi'
+    | '/diagnostic'
+    | '/examens'
     | '/jeux'
     | '/manche'
     | '/oreille'
     | '/parcours'
+    | '/progression'
     | '/studio'
     | '/jeux/$id'
     | '/lecon/$id'
@@ -138,10 +186,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CarnetRoute: typeof CarnetRoute
+  DefiRoute: typeof DefiRoute
+  DiagnosticRoute: typeof DiagnosticRoute
+  ExamensRoute: typeof ExamensRoute
   JeuxRoute: typeof JeuxRouteWithChildren
   MancheRoute: typeof MancheRoute
   OreilleRoute: typeof OreilleRoute
   ParcoursRoute: typeof ParcoursRoute
+  ProgressionRoute: typeof ProgressionRoute
   StudioRoute: typeof StudioRoute
   LeconIdRoute: typeof LeconIdRoute
 }
@@ -160,6 +212,27 @@ declare module '@tanstack/react-router' {
       path: '/carnet'
       fullPath: '/carnet'
       preLoaderRoute: typeof CarnetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/defi': {
+      id: '/defi'
+      path: '/defi'
+      fullPath: '/defi'
+      preLoaderRoute: typeof DefiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagnostic': {
+      id: '/diagnostic'
+      path: '/diagnostic'
+      fullPath: '/diagnostic'
+      preLoaderRoute: typeof DiagnosticRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/examens': {
+      id: '/examens'
+      path: '/examens'
+      fullPath: '/examens'
+      preLoaderRoute: typeof ExamensRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jeux': {
@@ -188,6 +261,13 @@ declare module '@tanstack/react-router' {
       path: '/parcours'
       fullPath: '/parcours'
       preLoaderRoute: typeof ParcoursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/progression': {
+      id: '/progression'
+      path: '/progression'
+      fullPath: '/progression'
+      preLoaderRoute: typeof ProgressionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -227,10 +307,14 @@ const JeuxRouteWithChildren = JeuxRoute._addFileChildren(JeuxRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CarnetRoute: CarnetRoute,
+  DefiRoute: DefiRoute,
+  DiagnosticRoute: DiagnosticRoute,
+  ExamensRoute: ExamensRoute,
   JeuxRoute: JeuxRouteWithChildren,
   MancheRoute: MancheRoute,
   OreilleRoute: OreilleRoute,
   ParcoursRoute: ParcoursRoute,
+  ProgressionRoute: ProgressionRoute,
   StudioRoute: StudioRoute,
   LeconIdRoute: LeconIdRoute,
 }
