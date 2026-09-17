@@ -5,18 +5,19 @@ interactif, oreille musicale, jeux chronométrés et studio de composition — l
 de 0 à 100 %.
 
 > Stack : React 19 · TanStack Start / Router · Tailwind CSS v4 · zustand (persisté en local) ·
-> Web Audio API · Better Auth + Postgres (opt-in, désactivés par défaut).
+> Web Audio API (corde pincée Karplus-Strong + piano modélisé, 100 % hors-ligne) ·
+> Better Auth + Postgres (opt-in, désactivés par défaut).
 
 ## Fonctionnalités
 
 ### Parcours guidé 0 → 100 % (`/parcours`)
-19 leçons en 4 phases, chacune débloquée par la précédente (60 % suffisent pour avancer) :
+22 leçons en 4 phases, chacune débloquée par la précédente (60 % suffisent pour avancer) :
 
 | Phase | Contenu |
 | --- | --- |
 | 1 · Fondations (0 → 20 %) | Notes & cordes, manche, intervalles, rythme, gamme majeure |
 | 2 · Harmonie et gammes (20 → 45 %) | Accords, gammes mineures, modes, pentas/blues, cadences, **voicings CAGED & renversements** |
-| 3 · Maîtrise avancée (45 → 75 %) | Harmonie fonctionnelle, gammes exotiques, réharmonisation, analyse |
+| 3 · Maîtrise avancée (45 → 75 %) | Harmonie fonctionnelle, gammes exotiques, réharmonisation, analyse guidée (Pachelbel, Creep, blues), dominantes secondaires, conduite des voix, métriques impaires |
 | 4 · Composition & expert (75 → 100 %) | Mélodie, structure, genres, projet final |
 
 Chaque leçon se termine par un **quiz ou un exercice validé** (plus de « marquer comme vu » sans preuve).
@@ -25,9 +26,24 @@ Chaque leçon se termine par un **quiz ou un exercice validé** (plus de « marq
 Diagramme 6 cordes × 13 cases : tonique, gammes (14 : majeure, mineures, modes, pentas, blues,
 par tons, diminuée…), **chaque case cliquable et audible** (vraie hauteur via Web Audio).
 
+### Basse (`/basse`)
+Espace autonome des bassistes : **parcours en 4 leçons** (rôle & accordage, notes sur
+4 cordes, gammes majeure/mineure, groove & patterns — chacune avec explorateur
+interactif et quiz) + **examen final** (60 % → +50 XP, badge **Bassiste confirmé**).
+Aussi : **accordage** Mi–La–Ré–Sol, **manche 4 cordes** interactif, **3 patterns**
+jouables et **mini-jeu « Trouve la note »** (badge **Bassiste**).
+
+### Batterie (`/batterie`)
+Espace autonome des batteurs, **modélisée par couches** (transitoire + peau + partiels
+inharmoniques façon TR-808, bus compressé — aucun sample) : **parcours en 4 leçons**
+(kit, pulsation & métronome, rock/punk/funk/bossa, breaks — avec pads, métronome,
+rythmes jouables et démo de fill) + **examen final** (badge **Batteur confirmé**).
+Aussi : **8 pads** jouables et **mini-jeu « Quel rythme ? »** (badge **Batteur**).
+
 ### Oreille musicale (`/oreille`)
-4 ateliers : **intervalles**, **accords** (7 couleurs), **progressions** (12 grilles à nommer, avec
-analyse), **modes**. Séries courtes, score, XP.
+5 ateliers : **intervalles**, **accords** (7 couleurs), **progressions** (12 grilles à nommer, avec
+analyse), **modes**, et **micro** : accordeur temps réel (note + cents + cordes) + « joue ce que tu
+entends » (8 notes à reproduire sur ta vraie guitare, ±30 cents). Séries courtes, score, XP.
 
 ### Jeux (`/jeux`)
 6 jeux avec **records locaux persistés** et tableau des records sur le hub :
@@ -39,17 +55,56 @@ analyse), **modes**. Séries courtes, score, XP.
 Grille diatonique (majeur/mineur), mélodie par degrés, **10 genres** (rock, blues, jazz/fusion,
 metal, pop/indie, funk/soul, classique, fingerstyle, prog, bossa), **assistant** (suggestion du
 prochain accord + justification), **harmonisation auto**, **bibliothèque de 12 progressions
-analysées**, **export MIDI (.mid)** et texte/tab, sauvegarde au **carnet** (`/carnet`, rejouable).
+analysées**, **tablature auto** (positions simples), **export MIDI (.mid)**, texte/tab et
+**fiche PDF** (impression), sauvegarde au **carnet** (`/carnet`, rejouable).
 
 ### Évaluation & motivation
 - **Diagnostic** (`/diagnostic`) : 6 questions → niveau estimé + point d'entrée conseillé
 - **Défi du jour** (`/defi`) : 5 questions seedées par la date, identiques pour tous
 - **Examens** (`/examens`) : 3 examens de phase, 60 % pour valider
-- **Progrès** (`/progression`) : XP, streaks, 9 badges (ex. « Maître des modes »), titre évolutif,
-  maîtrise par leçon
+- **Révisions** : file « à revoir » sur l'accueil (leçons fragiles < 80 %), graphique XP 14 jours
+  - **Progrès** (`/progression`) : XP, streaks, 18 badges à médaillons (logos + couleurs,
+  ex. « Maître des modes », « Sans faute », « Bassiste », « Batteur », experts), titre évolutif, nom de niveau
+  (Novice → Maître Diapason), barème officiel des sources d'XP, maîtrise par leçon,
+  bouton d'installation PWA
+- **Dopamine saine** : niveaux (100/300/600… XP), barre d'XP persistante, toasts de
+  récompense (leçons, jeux, oreille, examens, défis, carnet, records), confettis +
+  fanfare aux validations, modale de passage de niveau, bonus de série (+5/+10 XP),
+  objectif quotidien de 50 XP avec anneau, urgence des chronos sous 10 s
+
+### Mémos (`/memos`)
+- **Cycle des quintes interactif** : gamme, relatif mineur, armure, accords du ton, écoute I–IV–V
+- **Tables** : 12 intervalles, triades, tétrades, cadences — la référence du futur pro
+
+### Paramètres (`/parametres`)
+- **Langue** : français / anglais (interface, 22 leçons, tous les quiz)
+- **Notation** : solfège (Do, Ré, Mi…) ou anglo-saxonne (C, D, E…) — appliquée partout :
+  manche, leçons, jeux, oreille, studio, carnet
+- **Son** : guitare / piano · **Thème** : Braise, Papier, Minuit, Forêt, Miku, Teto
+  (instantané, persisté)
+- **Données** : recommencer à zéro (les réglages sont conservés)
 
 La progression (leçons, XP, records, compositions) est stockée **localement** (`localStorage`,
-clé `diapason-progress-v1`) : aucun compte requis, fonctionne hors-ligne pour l'essentiel.
+clé `diapason-progress-v1`) et **synchronisée dans le cloud** quand tu es connecté
+(voir Comptes ci-dessous). Les réglages (langue, notation, thème, instrument) restent locaux.
+
+## Comptes & profil
+
+- **Le site exige un compte** : toute page hors `/login` redirige vers la connexion
+  (avec retour à la page demandée après sign-in) ; hors-ligne, l'accès local reste
+  possible sans forcer de reconnexion.
+- **Connexion** (`/login`, page standalone sans en-tête) : création de compte /
+  connexion par **e-mail + mot de passe**, ou via **Google / X** (fédération).
+- **Profil** (`/profil`, protégé) : avatar, pseudo, e-mail, titre, 6 compteurs (XP, leçons,
+  série, badges, morceaux, défis), état de la **sync cloud** (auto à l'ouverture + bouton
+  manuel + push différé des modifications), suppression de la copie cloud, déconnexion.
+- **Sync multi-appareils** : last-write-wins par horodatage (`user_progress`, requêtes
+  scopées par `user_id` vérifié côté serveur). Sans compte, tout reste local et hors-ligne.
+
+### Galerie (`/galerie`)
+- Morceaux **publiés depuis le carnet** (bouton Publier/Retirer par pièce), visibles par tous :
+  titre, auteur (pseudo du compte, jamais l'e-mail), grille, écoute, **récupération** vers
+  son propre carnet. Suppression limitée à ses propres morceaux.
 
 ## Démarrage
 
@@ -81,11 +136,15 @@ src/
   components/      # fretboard (manche), shell (nav), ui
   lib/
     music.ts       # théorie : notes, gammes, accords, diatonique, genres,
-                   # voicings, bibliothèque, suggestions, export MIDI
+                   # voicings, bibliothèque, suggestions, tablature, export MIDI
     curriculum.ts  # 19 leçons, quiz, diagnostic, examens
-    progress.ts    # store zustand persisté : XP, scores, records, pièces
-    gamification.ts# badges, titres, défi du jour (seed)
-    audio.ts       # Web Audio : oscillateurs, accords, intervalles, clics
+    progress.ts    # store zustand persisté : XP, scores, records, pièces, activité
+    gamification.ts# badges, titres, défi du jour (seed), file de révision
+    i18n.ts          # FR/EN (159 clés), notations Do–Si / C–B, hooks useT/useNN
+    audio.ts       # Web Audio : moteur guitare/piano, reverb, accords, intervalles, clics
+    synth.ts       # synthèse pure (Karplus-Strong + piano) — testable sans navigateur
+    pitch.ts       # détection de hauteur (autocorrélation) — testable sans navigateur
+    mic.ts         # hook micro temps réel (accordeur, joue-ce-que-tu-entends)
 ```
 
 ## Notes techniques
@@ -99,5 +158,13 @@ src/
 ## Feuille de route
 
 - Dictée harmonique chronométrée · paliers de difficulté (tétrades, 12e case)
-- Mode hors-ligne PWA complet · polyrythmies / métriques impaires
+- Polyrythmies / métriques impaires · enregistrement audio des compos
 - Classements en ligne (nécessite l'auth) · packs de genres premium
+- Précache des chunks JS au build pour un hors-ligne encore plus rapide
+
+## Interface
+
+Design system à tokens (7 thèmes : Braise, Papier, Minuit, Forêt, Miku, Teto, Daltonien) :
+motion d'entrée en cascade par page, cartes avec soulèvement au survol, quiz à pastilles
+A/B/C/D avec feedback animé, anneau de score SVG, hero avec motif cordes, en-tête sticky
+flouté. Le tout en `src/styles.css` + `src/components/ui.tsx`, sans dépendance.

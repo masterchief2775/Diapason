@@ -1,4 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { useEffect } from "react";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { Shell } from "@/components/shell";
@@ -6,7 +8,23 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "Diapason";
 
+/** Session SSR depuis le cookie (zéro-flash quand déployé / cookie présent). */
+const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
+  const { getSessionUser } = await import("@/lib/auth/verify.server");
+  const u = await getSessionUser();
+  return u ? { id: u.id, email: u.email } : null;
+});
+
+function useServiceWorker() {
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    // Le SW met en cache leçons + jeux pour le mode hors-ligne (jamais __grok/).
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+}
+
 export const Route = createRootRoute({
+  beforeLoad: async () => ({ sessionUser: await fetchSessionUser() }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -26,20 +44,23 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  component: () => (
-    <html lang="fr" suppressHydrationWarning>
-      <head>
-        <HeadContent />
-      </head>
-      <body className="bg-bg text-fg antialiased">
-        <PreviewHostBridge />
-        <AuthProvider>
-          <Shell>
-            <Outlet />
-          </Shell>
-        </AuthProvider>
-        <Scripts />
-      </body>
-    </html>
-  ),
+  component: () => {
+    useServiceWorker();
+    return (
+      <html lang="fr" suppressHydrationWarning>
+        <head>
+          <HeadContent />
+        </head>
+        <body className="bg-bg text-fg antialiased">
+          <PreviewHostBridge />
+          <AuthProvider>
+            <Shell>
+              <Outlet />
+            </Shell>
+          </AuthProvider>
+          <Scripts />
+        </body>
+      </html>
+    );
+  },
 });

@@ -1,4 +1,5 @@
-import { MARKER_FRETS, NOTES, STRING_LABELS, FRET_COUNT, noteAt } from "@/lib/music";
+import { MARKER_FRETS, FRET_COUNT, noteAt } from "@/lib/music";
+import { stringLabels, useNaming, useNN } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { resumeAudio, playTone, getAudioContext } from "@/lib/audio";
 
@@ -19,7 +20,9 @@ export function Fretboard({
   compact?: boolean;
   hear?: boolean;
 }) {
-  const cell = compact ? "w-7 h-7 text-[10px]" : "w-9 h-9 text-[11px]";
+  const cell = compact ? "w-7 h-7 text-[10px]" : "w-9 h-9 text-[10px]";
+  const nn = useNN();
+  const labels = stringLabels(useNaming());
 
   const handle = async (s: number, f: number) => {
     if (hear) {
@@ -30,7 +33,7 @@ export function Fretboard({
   };
 
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-raised p-3 md:p-5">
+    <div className="overflow-x-auto rounded-xl border border-line bg-raised p-3 shadow-sm md:p-5">
       <div className="inline-block min-w-max">
         <div className="ml-14 flex">
           {Array.from({ length: FRET_COUNT + 1 }).map((_, f) => (
@@ -39,7 +42,7 @@ export function Fretboard({
             </div>
           ))}
         </div>
-        {STRING_LABELS.map((label, sIdx) => (
+        {labels.map((label, sIdx) => (
           <div key={sIdx} className="flex items-center">
             <div className="w-14 shrink-0 font-mono text-xs text-muted">{label}</div>
             {Array.from({ length: FRET_COUNT + 1 }).map((_, f) => {
@@ -59,24 +62,26 @@ export function Fretboard({
                   onClick={() => void handle(sIdx, f)}
                   className={cn(
                     cell,
-                    "relative flex shrink-0 items-center justify-center border-t border-line",
+                    "group/cell relative flex shrink-0 items-center justify-center border-t border-line transition-colors",
                     sIdx === 5 && "border-b",
-                    f === 0 ? "border-l-[3px] border-l-subtle" : "border-l border-line",
+                    f === 0 ? "border-l-[3px] border-l-gold/60" : "border-l border-line",
+                    onCellClick && "hover:bg-raised",
                   )}
                 >
                   {MARKER_FRETS.includes(f) && sIdx === 5 && !show && (
-                    <span className="absolute -bottom-3 size-1 rounded-full bg-line" />
+                    <span className="absolute -bottom-3 size-1 rounded-full bg-subtle" />
                   )}
                   <span
                     className={cn(
-                      "flex size-[calc(100%-8px)] items-center justify-center rounded-full font-mono",
-                      isRoot && "bg-gold text-accent-fg",
+                      "flex size-[calc(100%-8px)] items-center justify-center rounded-full font-mono transition-transform",
+                      isRoot && "bg-gold font-semibold text-accent-fg shadow-[0_0_14px_-2px_var(--color-gold)]",
                       !isRoot && inScale && "bg-sage text-sage-dim",
-                      isActive && "ring-2 ring-gold",
-                      !show && "text-transparent",
+                      isActive && "ring-2 ring-gold ring-offset-1 ring-offset-transparent",
+                      !show && "text-transparent group-hover/cell:scale-110",
                     )}
+                    style={isRoot ? { boxShadow: "0 0 14px -2px var(--color-gold)" } : undefined}
                   >
-                    {show ? NOTES[note] : ""}
+                    {show ? nn[note] : ""}
                   </span>
                 </button>
               );
@@ -93,7 +98,7 @@ export function NoteSymbol({ type, size = 34 }: { type: string; size?: number })
   const filled = type === "noire" || type === "croche";
   const hasStem = type !== "ronde";
   const hasFlag = type === "croche";
-  const color = "#EDE7DD";
+  const color = "currentColor";
   return (
     <svg width={size} height={h} viewBox="0 0 24 32" aria-hidden>
       <ellipse

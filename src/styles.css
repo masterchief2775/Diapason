@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 
 @theme {
+  /* Braise (défaut) — les thèmes ci-dessous surchargent ces variables. */
   --color-bg: #14110f;
   --color-surface: #1c1712;
   --color-raised: #241c13;
@@ -36,6 +37,10 @@
     cursor: pointer;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   html,
   body {
     background: var(--color-bg);
@@ -48,9 +53,27 @@
     border-color: var(--color-line);
   }
 
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-bg);
+  }
+
   :focus-visible {
     outline: 2px solid var(--color-gold);
     outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 8px;
+    border: 2px solid var(--color-bg);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -63,6 +86,297 @@
   }
 }
 
+/* ---------- Motion (respecte prefers-reduced-motion ci-dessus) ---------- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes shimmer-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(220%);
+  }
+}
+
+/* Entrée de page en cascade : chaque bloc monte à tour de rôle */
+.stagger > * {
+  animation: rise-in 0.5s var(--ease-out) both;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.stagger > *:nth-child(n + 6) {
+  animation-delay: 0.25s;
+}
+
+.pop-in {
+  animation: pop-in 0.25s var(--ease-out) both;
+}
+
+/* ---------- Surfaces ---------- */
+
+/* Carte lien : soulèvement + lueur au survol */
+.card-lift {
+  transition:
+    transform 0.18s var(--ease-out),
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-gold);
+  box-shadow:
+    0 12px 28px -18px var(--color-gold),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Reflet supérieur subtil pour les panneaux */
+.panel-sheen {
+  position: relative;
+}
+.panel-sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.35;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Motif cordes de guitare (hero, bandeaux) : filigrane, pas de scanlines */
+.string-motif {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 17px,
+    color-mix(in srgb, var(--color-line) 55%, transparent) 17px,
+    color-mix(in srgb, var(--color-line) 55%, transparent) 18px
+  );
+  mask-image: linear-gradient(to bottom, black 30%, transparent 95%);
+}
+
+/* Halo doré derrière un visuel */
+.gold-halo {
+  background: radial-gradient(closest-side, var(--color-gold), transparent);
+  opacity: 0.12;
+  filter: blur(10px);
+}
+
+/* Barre de progression */
+.track {
+  background: var(--color-line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.fill-gold {
+  background: linear-gradient(90deg, var(--color-gold), var(--color-accent));
+  border-radius: 999px;
+  transition: width 0.5s var(--ease-out);
+}
+.fill-sage {
+  background: linear-gradient(90deg, var(--color-sage), var(--color-accent));
+  border-radius: 999px;
+  transition: width 0.5s var(--ease-out);
+}
+
+/* Pastille de score qui pulse doucement */
+.live-dot {
+  animation: glow-pulse 1.6s ease-in-out infinite;
+}
+
 input[type="range"] {
   accent-color: var(--color-gold);
+}
+
+/* ---------- Thèmes (sélecteur : html[data-theme]) ---------- */
+
+:root {
+  color-scheme: dark;
+}
+
+[data-theme="papier"] {
+  color-scheme: light;
+  --color-bg: #f6f1e5;
+  --color-surface: #fffdf7;
+  --color-raised: #ece3cf;
+  --color-fg: #2a2114;
+  --color-muted: #6f6250;
+  --color-subtle: #97876f;
+  --color-line: #ddd0b8;
+  --color-accent: #4a3a20;
+  --color-accent-fg: #faf5e9;
+  --color-gold: #7d6116;
+  --color-sage: #3c6b4d;
+  --color-sage-dim: #dce9de;
+  --color-danger: #a8342c;
+  --color-danger-dim: #f5dcd8;
+}
+
+[data-theme="minuit"] {
+  color-scheme: dark;
+  --color-bg: #0c1220;
+  --color-surface: #131b2e;
+  --color-raised: #1a2440;
+  --color-fg: #e7ecf6;
+  --color-muted: #9aa6be;
+  --color-subtle: #6e7a93;
+  --color-line: #26314b;
+  --color-accent: #c9d6f2;
+  --color-accent-fg: #131b2e;
+  --color-gold: #d9b45b;
+  --color-sage: #7fa8a0;
+  --color-sage-dim: #12211f;
+  --color-danger: #d47a74;
+  --color-danger-dim: #2a1518;
+}
+
+[data-theme="foret"] {
+  color-scheme: dark;
+  --color-bg: #0e1511;
+  --color-surface: #16211a;
+  --color-raised: #1e2c23;
+  --color-fg: #e9efe7;
+  --color-muted: #a3b3a4;
+  --color-subtle: #75836f;
+  --color-line: #2a382c;
+  --color-accent: #e3d3a8;
+  --color-accent-fg: #16211a;
+  --color-gold: #d4bc7a;
+  --color-sage: #9cc3a5;
+  --color-sage-dim: #152419;
+  --color-danger: #d08a80;
+  --color-danger-dim: #2a1614;
+}
+
+[data-theme="miku"] {
+  color-scheme: dark;
+  --color-bg: #0a1418;
+  --color-surface: #101e24;
+  --color-raised: #162830;
+  --color-fg: #eaf6f7;
+  --color-muted: #93aeb4;
+  --color-subtle: #647e85;
+  --color-line: #22333b;
+  --color-accent: #46d4d4;
+  --color-accent-fg: #062a2e;
+  --color-gold: #39c5cf;
+  --color-sage: #7fd6a4;
+  --color-sage-dim: #12281d;
+  --color-danger: #ff6b81;
+  --color-danger-dim: #2b1218;
+}
+
+[data-theme="teto"] {
+  color-scheme: dark;
+  --color-bg: #120d0d;
+  --color-surface: #1b1212;
+  --color-raised: #261616;
+  --color-fg: #f5e9e4;
+  --color-muted: #b09a90;
+  --color-subtle: #7d6a61;
+  --color-line: #382424;
+  --color-accent: #ffd23f;
+  --color-accent-fg: #231303;
+  --color-gold: #e63b2e;
+  --color-sage: #8fbc7a;
+  --color-sage-dim: #182512;
+  --color-danger: #ff7a6b;
+  --color-danger-dim: #2c1414;
+}
+
+[data-theme="daltonien"] {
+  color-scheme: dark;
+  --color-bg: #101012;
+  --color-surface: #17171a;
+  --color-raised: #202024;
+  --color-fg: #f2f2f2;
+  --color-muted: #b0b0b8;
+  --color-subtle: #808088;
+  --color-line: #2e2e34;
+  --color-accent: #f0e442;
+  --color-accent-fg: #101012;
+  --color-gold: #56b4e9;
+  --color-sage: #e69f00;
+  --color-sage-dim: #2a2008;
+  --color-danger: #cc79a7;
+  --color-danger-dim: #2a1420;
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  header,
+  nav,
+  button,
+  input,
+  select,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+    color: #000;
+  }
+  .print-only h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  .print-only p {
+    font-size: 13px;
+    margin: 0 0 8px;
+  }
+  .print-only pre {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    border: 1px solid #999;
+    padding: 12px;
+  }
+  main > div {
+    max-width: 100% !important;
+  }
 }

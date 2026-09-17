@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock } from "@/features/quiz-block";
-import { DIAGNOSTIC, lessonById } from "@/lib/curriculum";
+import { DIAGNOSTIC, DIAGNOSTIC_EN, lessonById, lessonText } from "@/lib/curriculum";
 import { useProgress } from "@/lib/progress";
+import { useLang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/diagnostic")({ component: DiagnosticPage });
 
@@ -15,9 +16,16 @@ function DiagnosticPage() {
   const setLevel = useProgress((s) => s.setLevel);
   const completeLesson = useProgress((s) => s.completeLesson);
   const nav = useNavigate();
+  const lang = useLang();
+  const qs = lang === "en" ? DIAGNOSTIC_EN : DIAGNOSTIC;
 
   const levelFor = (a: number[]): { level: string; advice: string; jumpTo: string } => {
-    const confident = a.filter((v, i) => v === DIAGNOSTIC[i].answer).length;
+    const confident = a.filter((v, i) => v === qs[i].answer).length;
+    if (lang === "en") {
+      if (confident >= 5) return { level: "Intermediate", advice: "Solid basics. Head to harmony (Phase 2) and modes.", jumpTo: "accords" };
+      if (confident >= 3) return { level: "False beginner", advice: "A few gaps in the basics. Review intervals, then attack scales.", jumpTo: "intervalles" };
+      return { level: "True beginner", advice: "Starting from zero is perfect: notes, neck, intervals, in order.", jumpTo: "notes" };
+    }
     if (confident >= 5) return { level: "Intermédiaire", advice: "Bases solides. Direction l'harmonie (Phase 2) et les modes.", jumpTo: "accords" };
     if (confident >= 3) return { level: "Faux-débutant", advice: "Quelques trous sur les codages. Revois les intervalles puis attaque les gammes.", jumpTo: "intervalles" };
     return { level: "Grand débutant", advice: "On part de zéro, c'est parfait : notes, manche, intervalles, dans l'ordre.", jumpTo: "notes" };
@@ -26,10 +34,13 @@ function DiagnosticPage() {
   if (phase === "intro") {
     return (
       <Page>
-        <Title kicker="Diagnostic" lead="6 questions pour calibrer ton point de départ. Sans pression : ça adapte le parcours.">
-          Où en es-tu vraiment ?
+        <Title
+          kicker={lang === "en" ? "Diagnostic" : "Diagnostic"}
+          lead={lang === "en" ? "6 questions to calibrate your starting point. No pressure: it adapts the path." : "6 questions pour calibrer ton point de départ. Sans pression : ça adapte le parcours."}
+        >
+          {lang === "en" ? "Where do you really stand?" : "Où en es-tu vraiment ?"}
         </Title>
-        <Button onClick={() => setPhase("quiz")}>Lancer le diagnostic</Button>
+        <Button onClick={() => setPhase("quiz")}>{lang === "en" ? "Start the diagnostic" : "Lancer le diagnostic"}</Button>
       </Page>
     );
   }
@@ -37,12 +48,11 @@ function DiagnosticPage() {
   if (phase === "quiz") {
     return (
       <Page>
-        <Title kicker="Diagnostic">6 questions</Title>
+        <Title kicker={lang === "en" ? "Diagnostic" : "Diagnostic"}>{lang === "en" ? "6 questions" : "6 questions"}</Title>
         <QuizBlock
-          questions={DIAGNOSTIC}
+          questions={qs}
           onDone={(p) => {
             setPct(p);
-            // estime les réponses via le score seul pour le niveau
             void answers;
             setPhase("recap");
           }}
@@ -55,22 +65,21 @@ function DiagnosticPage() {
   const res = levelFor(answers);
   return (
     <Page>
-      <Title kicker="Diagnostic · résultat" lead={res.advice}>
-        Niveau estimé : {res.level} ({pct} %)
+      <Title kicker={lang === "en" ? "Diagnostic · result" : "Diagnostic · résultat"} lead={res.advice}>
+        {lang === "en" ? `Estimated level: ${res.level} (${pct}%)` : `Niveau estimé : ${res.level} (${pct} %)`}
       </Title>
       <div className="flex flex-wrap gap-2">
         <Button
           onClick={() => {
             setLevel(res.level);
-            // petit bonus : si déjà fort, on valide la toute première leçon
-            if (res.level === "Intermédiaire") completeLesson("notes", 80);
+            if (res.level === "Intermédiaire" || res.level === "Intermediate") completeLesson("notes", 80);
             nav({ to: "/lecon/$id", params: { id: res.jumpTo } });
           }}
         >
-          Aller à « {lessonById(res.jumpTo)?.title ?? res.jumpTo} »
+          {lang === "en" ? "Go to" : "Aller à"} « {lessonById(res.jumpTo) ? lessonText(lang, lessonById(res.jumpTo)!).title : res.jumpTo} »
         </Button>
         <Button variant="outline" onClick={() => nav({ to: "/parcours" })}>
-          Voir le parcours
+          {lang === "en" ? "See the path" : "Voir le parcours"}
         </Button>
       </div>
     </Page>

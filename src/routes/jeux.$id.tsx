@@ -5,8 +5,10 @@ import { BackLink, Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { Recap } from "@/features/quiz-block";
 import { freqForOffset, playTone, resumeAudio } from "@/lib/audio";
-import { CHORD_QUALITIES, INTERVALS, NOTES, SCALES, TUNING, degreeChord, noteAt } from "@/lib/music";
+import { CHORD_QUALITIES, INTERVALS, SCALES, TUNING, degreeChord, noteAt } from "@/lib/music";
 import { useProgress } from "@/lib/progress";
+import { useLang, useNN, useT } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/jeux/$id")({
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/jeux/$id")({
 
 function GameRoute() {
   const { id } = Route.useParams();
+  const lang = useLang();
   if (id === "intervalles") return <IntervalRace />;
   if (id === "accorde") return <ChordRace />;
   if (id === "trou") return <MissingNote />;
@@ -23,7 +26,7 @@ function GameRoute() {
   if (id === "compo60") return <Compo60 />;
   return (
     <Page>
-      <p>Jeu introuvable.</p>
+      <p>{lang === "en" ? "Game not found." : "Jeu introuvable."}</p>
     </Page>
   );
 }
@@ -45,6 +48,17 @@ function useCountdown(total: number, running: boolean, onEnd: () => void) {
   return { left, reset: () => setLeft(total) };
 }
 
+/** Bandeau d'urgence quand le chrono tombe sous 10 s. */
+function Urgency({ left, lang }: { left: number; lang: Lang }) {
+  if (left > 10) return null;
+  return (
+    <p className="mb-3 flex items-center gap-1.5 font-mono text-xs text-danger">
+      <span className="live-dot inline-block size-1.5 rounded-full bg-danger" aria-hidden />
+      {left}s — {lang === "en" ? "hurry!" : "vite !"}
+    </p>
+  );
+}
+
 function IntervalRace() {
   const [q, setQ] = useState<(typeof INTERVALS)[number]>(INTERVALS[4]);
   const [score, setScore] = useState(0);
@@ -54,6 +68,7 @@ function IntervalRace() {
   const recordBest = useProgress((s) => s.recordBest);
   const prevBest = useProgress((s) => s.bestScores["intervalles"] ?? 0);
   const nav = useNavigate();
+  const lang = useLang();
 
   const { left, reset } = useCountdown(30, !done, () => {
     setDone(true);
@@ -61,7 +76,7 @@ function IntervalRace() {
 
   useEffect(() => {
     if (!done) return;
-    addXp(score);
+    addXp(score, "feed.game");
     recordBest("intervalles", score);
     setBest(score > 0 && score >= prevBest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,13 +84,14 @@ function IntervalRace() {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/jeux" })} label="Jeux" />
-      <Title kicker={`${left}s · record ${Math.max(prevBest, done ? score : 0)} pts`} lead="Clique la case sur la 6e corde. Chaque bonne réponse enchaîne.">
-        Course d'intervalles · {score} pts
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
+      <Title kicker={`${left}s · record ${Math.max(prevBest, done ? score : 0)} pts`} lead={lang === "en" ? "Click the fret on the 6th string. Every hit chains." : "Clique la case sur la 6e corde. Chaque bonne réponse enchaîne."}>
+        {lang === "en" ? "Interval race" : "Course d'intervalles"} · {score} pts
       </Title>
+      {!done && <Urgency left={left} lang={lang} />}
       {!done ? (
         <>
-          <h2 className="mb-4 font-display text-xl">{q.label}</h2>
+          <h2 className="mb-4 font-display text-xl">{lang === "en" ? q.labelEn : q.label}</h2>
           <Fretboard
             highlight={{ rootIndex: TUNING[0], steps: [] }}
             onCellClick={(s, f) => {
@@ -98,8 +114,8 @@ function IntervalRace() {
             reset();
           }}
           onBack={() => nav({ to: "/jeux" })}
-          perfect={best ? "Nouveau record ! Rapide et juste." : "Rapide et juste."}
-          ok="Le tempo reviendra."
+          perfect={best ? (lang === "en" ? "New record! Fast and accurate." : "Nouveau record ! Rapide et juste.") : lang === "en" ? "Fast and accurate." : "Rapide et juste."}
+          ok={lang === "en" ? "Tempo will come back." : "Le tempo reviendra."}
         />
       )}
     </Page>
@@ -118,15 +134,18 @@ function ChordRace() {
   const [tries, setTries] = useState(0);
   const [done, setDone] = useState(false);
   const nav = useNavigate();
+  const lang = useLang();
+  const nn = useNN();
   const addXp = useProgress((s) => s.addXp);
   const recordBest = useProgress((s) => s.recordBest);
   const prevBest = useProgress((s) => s.bestScores["accorde"] ?? 0);
+  const qName = lang === "en" ? target.q.labelEn : target.q.label;
 
   const { left, reset } = useCountdown(45, !done, () => setDone(true));
 
   useEffect(() => {
     if (!done) return;
-    addXp(score * 2);
+    addXp(score * 2, "feed.game");
     recordBest("accorde", score);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
@@ -151,8 +170,8 @@ function ChordRace() {
             next();
           }}
           onBack={() => nav({ to: "/jeux" })}
-          perfect="Triades en place, contre la montre."
-          ok="Revois les degrés (1–3–5, 1–♭3–5…) et retente."
+          perfect={lang === "en" ? "Triads locked in, against the clock." : "Triades en place, contre la montre."}
+          ok={lang === "en" ? "Review degrees (1–3–5, 1–♭3–5…) and retry." : "Revois les degrés (1–3–5, 1–♭3–5…) et retente."}
         />
       </Page>
     );
@@ -160,12 +179,13 @@ function ChordRace() {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/jeux" })} label="Jeux" />
-      <Title kicker={`${left}s · ${score} pts · record ${prevBest}`} lead={`${tries} accords tentés. Une erreur vide ta sélection, sans perdre l'accord.`}>
-        {NOTES[target.root]} {target.q.label.toLowerCase()} <span className="font-mono text-sm text-subtle">({target.q.degrees})</span>
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
+      <Title kicker={`${left}s · ${score} pts · record ${prevBest}`} lead={lang === "en" ? `${tries} chords tried. A miss clears your pick, not the chord.` : `${tries} accords tentés. Une erreur vide ta sélection, sans perdre l'accord.`}>
+        {nn[target.root]} {qName.toLowerCase()} <span className="font-mono text-sm text-subtle">({target.q.degrees})</span>
       </Title>
+      {!done && <Urgency left={left} lang={lang} />}
       <p className={cn("mb-3 text-sm", flash === "ko" ? "text-danger" : "text-subtle")}>
-        {picked.length} / 3 notes {flash === "ko" ? "— raté, recommence cet accord" : ""}
+        {picked.length} / 3 {lang === "en" ? "notes" : "notes"} {flash === "ko" ? (lang === "en" ? "— miss, retry this chord" : "— raté, recommence cet accord") : ""}
       </p>
       <Fretboard
         activeCells={picked}
@@ -207,6 +227,8 @@ function MissingNote() {
   const [n, setN] = useState(0);
   const total = 5;
   const nav = useNavigate();
+  const lang = useLang();
+  const nn = useNN();
   const addXp = useProgress((s) => s.addXp);
   const recordBest = useProgress((s) => s.recordBest);
   const prevBest = useProgress((s) => s.bestScores["trou"] ?? 0);
@@ -222,7 +244,7 @@ function MissingNote() {
   useEffect(deal, []);
 
   const finish = (finalScore: number) => {
-    addXp(finalScore * 4);
+    addXp(finalScore * 4, "feed.game");
     recordBest("trou", finalScore);
   };
 
@@ -240,8 +262,8 @@ function MissingNote() {
             deal();
           }}
           onBack={() => nav({ to: "/jeux" })}
-          perfect="Tu vois la gamme."
-          ok="Écoute encore la majeure."
+          perfect={lang === "en" ? "You see the scale." : "Tu vois la gamme."}
+          ok={lang === "en" ? "Listen to the major scale again." : "Écoute encore la majeure."}
         />
       </Page>
     );
@@ -249,9 +271,9 @@ function MissingNote() {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/jeux" })} label="Jeux" />
-      <Title kicker={`${n + 1} / ${total} · score ${score} · record ${prevBest}/5`} lead={`Gamme de ${NOTES[root]} majeur — clique la note absente (6e corde).`}>
-        Note manquante
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
+      <Title kicker={`${n + 1} / ${total} · score ${score} · record ${prevBest}/5`} lead={lang === "en" ? `${nn[root]} major scale — click the missing note (6th string).` : `Gamme de ${nn[root]} majeur — clique la note absente (6e corde).`}>
+        {lang === "en" ? "Missing note" : "Note manquante"}
       </Title>
       <Fretboard
         highlight={{ rootIndex: root, steps: shown }}
@@ -266,7 +288,9 @@ function MissingNote() {
       {fb && (
         <div className="mt-4 flex justify-between">
           <span className={fb === "ok" ? "text-sage" : "text-danger"}>
-            {fb === "ok" ? "C'était bien celle-là." : `Manquait ${NOTES[(root + missing) % 12]}.`}
+            {fb === "ok"
+              ? lang === "en" ? "That was the one." : "C'était bien celle-là."
+              : lang === "en" ? `Missing: ${nn[(root + missing) % 12]}.` : `Manquait ${nn[(root + missing) % 12]}.`}
           </span>
           <Button
             onClick={() => {
@@ -276,7 +300,7 @@ function MissingNote() {
               deal();
             }}
           >
-            Suivant
+            {lang === "en" ? "Next" : "Suivant"}
           </Button>
         </div>
       )}
@@ -294,6 +318,7 @@ function Dictee() {
   const [score, setScore] = useState(0);
   const [n, setN] = useState(0);
   const nav = useNavigate();
+  const lang = useLang();
   const addXp = useProgress((s) => s.addXp);
   const recordBest = useProgress((s) => s.recordBest);
   const prevBest = useProgress((s) => s.bestScores["dictee"] ?? 0);
@@ -332,8 +357,8 @@ function Dictee() {
             deal();
           }}
           onBack={() => nav({ to: "/jeux" })}
-          perfect="Oreille absolue sur une corde."
-          ok="Chante chaque note avant de cliquer : la voix guide l'oreille."
+          perfect={lang === "en" ? "Perfect pitch on one string." : "Oreille absolue sur une corde."}
+          ok={lang === "en" ? "Sing each note before clicking: voice guides the ear." : "Chante chaque note avant de cliquer : la voix guide l'oreille."}
         />
       </Page>
     );
@@ -341,13 +366,13 @@ function Dictee() {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/jeux" })} label="Jeux" />
-      <Title kicker={`Manche ${n + 1} / ${ROUNDS} · score ${score} · record ${prevBest}/20`} lead="4 notes jouées sur la 6e corde. Rejoue-les dans l'ordre en cliquant les cases.">
-        Dictée mélodique
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
+      <Title kicker={`${lang === "en" ? "Round" : "Manche"} ${n + 1} / ${ROUNDS} · score ${score} · record ${prevBest}/20`} lead={lang === "en" ? "4 notes played on the 6th string. Play them back in order by clicking frets." : "4 notes jouées sur la 6e corde. Rejoue-les dans l'ordre en cliquant les cases."}>
+        {lang === "en" ? "Melodic dictation" : "Dictée mélodique"}
       </Title>
       <div className="mb-4 flex gap-2">
         <Button variant="outline" onClick={playSeq}>
-          Réécouter
+          {lang === "en" ? "Replay" : "Réécouter"}
         </Button>
         <div className="flex items-center gap-1.5">
           {seq.map((_, i) => (
@@ -386,19 +411,21 @@ function Dictee() {
       {fb && (
         <div className="mt-4 flex justify-between">
           <span className={fb.every(Boolean) ? "text-sage" : "text-muted"}>
-            {fb.every(Boolean) ? "Parfait, les 4 notes." : `Suite : ${seq.join(" – ")} (cases).`}
+            {fb.every(Boolean)
+              ? lang === "en" ? "Perfect, all 4 notes." : "Parfait, les 4 notes."
+              : lang === "en" ? `Sequence: ${seq.join(" – ")} (frets).` : `Suite : ${seq.join(" – ")} (cases).`}
           </span>
           <Button
             onClick={() => {
               if (n + 1 >= ROUNDS) {
-                addXp(score * 2);
+                addXp(score * 2, "feed.game");
                 recordBest("dictee", score);
               }
               setN((x) => x + 1);
               deal();
             }}
           >
-            {n + 1 >= ROUNDS ? "Résultat" : "Suivant"}
+            {n + 1 >= ROUNDS ? (lang === "en" ? "Result" : "Résultat") : (lang === "en" ? "Next" : "Suivant")}
           </Button>
         </div>
       )}
@@ -417,13 +444,14 @@ function MinuteGrid() {
   const recordBest = useProgress((s) => s.recordBest);
   const prevBest = useProgress((s) => s.bestScores["minute"] ?? 0);
   const nav = useNavigate();
+  const lang = useLang();
 
   useEffect(() => {
     if (done) return;
     if (left <= 0) {
       const pts = prog.length >= 4 ? 40 + 0 : prog.length * 10;
       setScore(pts);
-      addXp(pts);
+      addXp(pts, "feed.game");
       recordBest("minute", pts);
       setDone(true);
       return;
@@ -437,7 +465,7 @@ function MinuteGrid() {
     if (prog.length >= 4 && !done) {
       const pts = 40 + left;
       setScore(pts);
-      addXp(pts);
+      addXp(pts, "feed.game");
       recordBest("minute", pts);
       setDone(true);
     }
@@ -457,10 +485,11 @@ function MinuteGrid() {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/jeux" })} label="Jeux" />
-      <Title kicker={`${left}s · record ${prevBest} pts`} lead="Quatre accords en Do majeur. Clique les degrés. Bonus = secondes restantes.">
-        Grille minute · {prog.length >= 4 ? score : prog.length}/4
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
+      <Title kicker={`${left}s · record ${prevBest} pts`} lead={lang === "en" ? "Four chords in C major. Click the degrees. Bonus = seconds left." : "Quatre accords en Do majeur. Clique les degrés. Bonus = secondes restantes."}>
+        {lang === "en" ? "Minute progression" : "Grille minute"} · {prog.length >= 4 ? score : prog.length}/4
       </Title>
+      {!done && <Urgency left={left} lang={lang} />}
       <div className="mb-5 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {degrees.map((ch, i) => (
           <button
@@ -480,7 +509,7 @@ function MinuteGrid() {
       {done && (
         <div className="flex gap-2">
           <Button onClick={play} disabled={prog.length === 0}>
-            Écouter
+            {lang === "en" ? "Listen" : "Écouter"}
           </Button>
           <Button
             variant="outline"
@@ -491,7 +520,7 @@ function MinuteGrid() {
               setDone(false);
             }}
           >
-            Rejouer
+            {lang === "en" ? "Replay" : "Rejouer"}
           </Button>
         </div>
       )}
@@ -513,13 +542,15 @@ function Compo60() {
   const savePiece = useProgress((s) => s.savePiece);
   const prevBest = useProgress((s) => s.bestScores["compo60"] ?? 0);
   const nav = useNavigate();
+  const lang = useLang();
+  const nn = useNN();
 
   useEffect(() => {
     if (done) return;
     if (left <= 0) {
       const pts = prog.length >= 4 ? 40 : prog.length * 10;
       setScore(pts);
-      addXp(pts);
+      addXp(pts, "feed.game");
       recordBest("compo60", pts);
       setDone(true);
       return;
@@ -533,7 +564,7 @@ function Compo60() {
     if (done || prog.length < 4) return;
     const pts = 40 + left;
     setScore(pts);
-    addXp(pts);
+    addXp(pts, "feed.game");
     recordBest("compo60", pts);
     setDone(true);
   };
@@ -551,10 +582,11 @@ function Compo60() {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/jeux" })} label="Jeux" />
-      <Title kicker={`${left}s · record ${prevBest} pts`} lead="Do majeur, 4 accords, un titre. Termine avant le gong pour le bonus de temps.">
-        Composition en 60 secondes {done ? `· ${score} pts` : ""}
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
+      <Title kicker={`${left}s · record ${prevBest} pts`} lead={lang === "en" ? "C major, 4 chords, a title. Finish before the gong for the time bonus." : "Do majeur, 4 accords, un titre. Termine avant le gong pour le bonus de temps."}>
+        {lang === "en" ? "60-second composition" : "Composition en 60 secondes"} {done ? `· ${score} pts` : ""}
       </Title>
+      {!done && <Urgency left={left} lang={lang} />}
       {!done && (
         <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-line">
           <div className="h-full bg-gold transition-all" style={{ width: `${(left / 60) * 100}%` }} />
@@ -571,7 +603,7 @@ function Compo60() {
           >
             <span className="font-display text-gold">{ch.numeral}</span>
             <span className="block font-mono text-[11px] text-subtle">
-              {NOTES[ch.rootNoteIndex]}
+              {nn[ch.rootNoteIndex]}
               {ch.quality.suffix}
             </span>
           </button>
@@ -583,33 +615,35 @@ function Compo60() {
       {!done ? (
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-subtle">
-            Titre
+            {lang === "en" ? "Title" : "Titre"}
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Mon riff express"
+              placeholder={lang === "en" ? "My express riff" : "Mon riff express"}
               className="rounded-sm border border-line bg-surface px-3 py-2 text-sm text-fg"
             />
           </label>
           <Button onClick={finishNow} disabled={prog.length < 4}>
-            Terminer ({prog.length}/4)
+            {lang === "en" ? "Finish" : "Terminer"} ({prog.length}/4)
           </Button>
         </div>
       ) : (
         <div>
           <p className="mb-4 text-sm text-muted">
-            {prog.length >= 4 ? "Grille bouclée dans les temps." : "Gong ! Grille incomplète, mais écoutable."}
+            {prog.length >= 4
+              ? lang === "en" ? "Progression wrapped in time." : "Grille bouclée dans les temps."
+              : lang === "en" ? "Gong! Incomplete progression, but playable." : "Gong ! Grille incomplète, mais écoutable."}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={play} disabled={prog.length === 0}>
-              Écouter
+              {lang === "en" ? "Listen" : "Écouter"}
             </Button>
             <Button
               variant="outline"
               disabled={saved || prog.length < 4}
               onClick={() => {
                 savePiece({
-                  title: title || "Riff express",
+                  title: title || (lang === "en" ? "Express riff" : "Riff express"),
                   keyRoot: key,
                   mode: "majeure",
                   progression: prog,
@@ -619,7 +653,7 @@ function Compo60() {
                 setSaved(true);
               }}
             >
-              {saved ? "Au carnet ✓" : "Sauver au carnet"}
+              {saved ? (lang === "en" ? "In journal ✓" : "Au carnet ✓") : lang === "en" ? "Save to journal" : "Sauver au carnet"}
             </Button>
             <Button
               variant="outline"
@@ -632,7 +666,7 @@ function Compo60() {
                 setDone(false);
               }}
             >
-              Rejouer
+              {lang === "en" ? "Replay" : "Rejouer"}
             </Button>
           </div>
         </div>

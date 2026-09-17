@@ -6,7 +6,8 @@ import { BackLink, Button, Chip } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock, Recap } from "@/features/quiz-block";
 import { resumeAudio, playIntervalAscending, playChordNow, playClick, getAudioContext, playTone, freqForOffset } from "@/lib/audio";
-import { LESSONS, QUIZZES, lessonById } from "@/lib/curriculum";
+import { LESSONS, QUIZZES, lessonById, lessonText, quizFor } from "@/lib/curriculum";
+import { useLang, useNN, useT } from "@/lib/i18n";
 import {
   CAGED,
   CHORD_QUALITIES,
@@ -14,7 +15,6 @@ import {
   INTERVALS,
   INVERSIONS,
   MODES_MAJOR,
-  NOTES,
   NOTE_VALUES,
   PROGRESSION_LIBRARY,
   PROGRESSION_PRESETS,
@@ -25,6 +25,7 @@ import {
   downloadBytes,
   inversionVoicing,
   noteAt,
+  renderTabText,
   shuffle,
   suggestNextDegrees,
   type ModeKey,
@@ -35,24 +36,27 @@ import { cn } from "@/lib/utils";
 export function LessonView({ id }: { id: string }) {
   const lesson = lessonById(id);
   const nav = useNavigate();
+  const t = useT();
+  const lang = useLang();
   const unlocked = useProgress((s) => s.isUnlocked(id));
   const completeLesson = useProgress((s) => s.completeLesson);
 
   if (!lesson) {
     return (
       <Page>
-        <p>Leçon introuvable.</p>
+        <p>{t("lesson.notFound")}</p>
       </Page>
     );
   }
+  const txt = lessonText(lang, lesson);
 
   if (!unlocked) {
     return (
       <Page>
-        <BackLink onClick={() => nav({ to: "/parcours" })} label="Parcours" />
+        <BackLink onClick={() => nav({ to: "/parcours" })} label={t("nav.path")} />
         <div className="flex items-center gap-3 text-muted">
           <Lock size={18} />
-          <p>Termine la leçon précédente pour débloquer « {lesson.title} ».</p>
+          <p>{t("lesson.locked")} « {txt.title} ».</p>
         </div>
       </Page>
     );
@@ -62,9 +66,9 @@ export function LessonView({ id }: { id: string }) {
 
   return (
     <Page>
-      <BackLink onClick={() => nav({ to: "/parcours" })} label="Parcours" />
-      <Title kicker={`Phase ${lesson.phase} · ${LESSONS.filter((l) => l.phase === lesson.phase).findIndex((l) => l.id === id) + 1}`} >
-        {lesson.title}
+      <BackLink onClick={() => nav({ to: "/parcours" })} label={t("nav.path")} />
+      <Title kicker={`${t("home.phase")} ${lesson.phase} · ${LESSONS.filter((l) => l.phase === lesson.phase).findIndex((l) => l.id === id) + 1}`} >
+        {txt.title}
       </Title>
       {id === "intervalles" && <IntervalExercise onFinish={finish} />}
       {id === "accords" && <ChordExercise onFinish={finish} />}
@@ -78,13 +82,17 @@ export function LessonView({ id }: { id: string }) {
       {id === "voicings" && <VoicingsExercise onFinish={finish} />}
       {id === "modes-exo" && <ExoticExercise onFinish={finish} />}
       {id === "reharmo" && <ReharmoExercise onFinish={finish} />}
+      {id === "analyse" && <AnalyseExercise onFinish={finish} />}
+      {id === "secondaires" && <SecondairesExercise onFinish={finish} />}
+      {id === "voix" && <VoixExercise onFinish={finish} />}
+      {id === "metriques" && <MetriquesExercise onFinish={finish} />}
       {id === "melodie" && <MelodyMini onFinish={finish} />}
       {id === "genres" && <GenreMini onFinish={finish} />}
       {id === "projet" && <ProjetMini onFinish={finish} />}
-      {QUIZZES[id] && (
+      {QUIZZES[id] && id !== "analyse" && (
         <TheoryQuiz
-          intro={lesson.intro}
-          questions={QUIZZES[id]}
+          intro={txt.intro}
+          questions={quizFor(lang, id)}
           onFinish={finish}
         />
       )}
@@ -103,16 +111,17 @@ function TheoryQuiz({
 }) {
   const [phase, setPhase] = useState<"intro" | "quiz" | "recap">("intro");
   const [pct, setPct] = useState(0);
+  const t = useT();
   const nav = useNavigate();
   if (phase === "intro") {
     return (
       <>
-        {intro.map((p) => (
-          <p key={p} className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
+        {intro.map((p, i) => (
+          <p key={p} className={i === 0 ? "mb-4 max-w-xl text-base leading-relaxed text-fg" : "mb-4 max-w-xl text-[15px] leading-relaxed text-muted"}>
             {p}
           </p>
         ))}
-        <Button onClick={() => setPhase("quiz")}>Commencer le quiz</Button>
+        <Button onClick={() => setPhase("quiz")}>{t("ui.startQuiz")}</Button>
       </>
     );
   }
@@ -134,8 +143,8 @@ function TheoryQuiz({
       total={0}
       onRetry={() => setPhase("quiz")}
       onBack={() => nav({ to: "/parcours" })}
-      perfect="Solide. Tu peux avancer."
-      ok="Relis l'intro et retente — 60 % débloque la suite."
+      perfect={t("lesson.solid")}
+      ok={t("lesson.retry60")}
     />
   );
 }
@@ -147,7 +156,11 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [round, setRound] = useState(0);
   const [score, setScore] = useState(0);
   const total = 5;
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const nav = useNavigate();
+  const qLabel = q ? (lang === "en" ? q.labelEn : q.label) : "";
 
   const nextQ = () => {
     setQ(INTERVALS[Math.floor(Math.random() * INTERVALS.length)]);
@@ -175,7 +188,7 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
     return (
       <>
         <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-          Un intervalle mesure la distance entre deux notes, en demi-tons. Sur une corde, c'est le nombre de cases.
+          {t("iv.intro")}
         </p>
         <div className="mb-6">
           <Fretboard compact activeCells={[{ s: 0, f: 0 }]} highlight={{ rootIndex: TUNING[0], steps: [0] }} />
@@ -188,7 +201,7 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
             nextQ();
           }}
         >
-          Commencer l'exercice
+          {t("ui.startExercise")}
         </Button>
       </>
     );
@@ -199,12 +212,12 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <>
         <div className="mb-2 flex justify-between font-mono text-xs text-subtle">
           <span>
-            Question {round + 1} / {total}
+            {t("ui.question")} {round + 1} / {total}
           </span>
-          <span className="text-sage">Score {score}</span>
+          <span className="text-sage">{t("ui.score")} {score}</span>
         </div>
         <h2 className="mb-5 font-display text-xl">
-          Clique la {q.label} au-dessus du Mi grave à vide.
+          {t("iv.click")} {qLabel} {t("iv.above").replace("Mi", nn[4])}
         </h2>
         <Fretboard highlight={{ rootIndex: TUNING[0], steps: [] }} onCellClick={click} />
         {fb && (
@@ -216,11 +229,11 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
           >
             <span>
               {fb === "ok"
-                ? "Exact."
-                : `La ${q.label} est ${q.semis} case${q.semis > 1 ? "s" : ""} plus loin.`}
+                ? t("iv.exact")
+                : `${qLabel} : ${q.semis} ${q.semis > 1 ? t("iv.cases") : t("iv.case")} ${t("iv.miss")}`}
             </span>
             <Button variant="outline" className="border-current text-inherit" onClick={go}>
-              {round + 1 >= total ? "Résultat" : "Suivant"}
+              {round + 1 >= total ? t("ui.result") : t("ui.next")}
             </Button>
           </div>
         )}
@@ -239,8 +252,8 @@ function IntervalExercise({ onFinish }: { onFinish: (p: number) => void }) {
         nextQ();
       }}
       onBack={() => nav({ to: "/parcours" })}
-      perfect="Les intervalles sur une corde sont automatiques."
-      ok="Encore quelques passages et ce sera fluide."
+      perfect={t("iv.perfect")}
+      ok={t("iv.ok")}
     />
   );
 }
@@ -256,7 +269,11 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [fb, setFb] = useState<"ok" | "ko" | null>(null);
   const total = 4;
   const quality = CHORD_QUALITIES.find((q) => q.id === qid)!;
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const nav = useNavigate();
+  const qLabel = (q: (typeof CHORD_QUALITIES)[number]) => (lang === "en" ? q.labelEn : q.label).toLowerCase();
 
   const newTarget = () => {
     const pool = CHORD_QUALITIES.filter((q) => q.formula.length === 3);
@@ -285,13 +302,13 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
     return (
       <>
         <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-          Une triade empile fondamentale, tierce et quinte. Change la tierce ou la quinte : la couleur change.
+          {t("ch.intro")}
         </p>
         <div className="mb-3 flex flex-wrap gap-6">
           <div>
-            <p className="mb-2 font-mono text-[11px] text-subtle">Fondamentale</p>
+            <p className="mb-2 font-mono text-[11px] text-subtle">{t("ch.root")}</p>
             <div className="flex max-w-xs flex-wrap gap-1.5">
-              {NOTES.map((n, i) => (
+              {nn.map((n, i) => (
                 <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
                   {n}
                 </Chip>
@@ -299,18 +316,18 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
             </div>
           </div>
           <div>
-            <p className="mb-2 font-mono text-[11px] text-subtle">Couleur</p>
+            <p className="mb-2 font-mono text-[11px] text-subtle">{t("ch.color")}</p>
             <div className="flex flex-wrap gap-1.5">
               {CHORD_QUALITIES.filter((q) => q.formula.length === 3).map((q) => (
                 <Chip key={q.id} tone="sage" active={q.id === qid} onClick={() => setQid(q.id)}>
-                  {q.label}
+                  {lang === "en" ? q.labelEn : q.label}
                 </Chip>
               ))}
             </div>
           </div>
         </div>
         <p className="mb-3 font-mono text-xs text-subtle">
-          {NOTES[root]} {quality.label.toLowerCase()} · {quality.degrees}
+          {nn[root]} {qLabel(quality)} · {quality.degrees}
         </p>
         <div className="mb-6">
           <Fretboard highlight={{ rootIndex: root, steps: quality.formula }} />
@@ -323,7 +340,7 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
             newTarget();
           }}
         >
-          Jouer : construis l'accord
+          {t("ch.play")}
         </Button>
       </>
     );
@@ -334,12 +351,12 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <>
         <div className="mb-2 flex justify-between font-mono text-xs text-subtle">
           <span>
-            Accord {round + 1} / {total}
+            {lang === "en" ? "Chord" : "Accord"} {round + 1} / {total}
           </span>
-          <span className="text-sage">Score {score}</span>
+          <span className="text-sage">{t("ui.score")} {score}</span>
         </div>
         <h2 className="mb-1 font-display text-xl">
-          3 notes pour un {NOTES[target.root]} {target.q.label.toLowerCase()}
+          3 {t("ch.target")} {nn[target.root]} {qLabel(target.q)}
         </h2>
         <p className="mb-4 text-sm text-subtle">{picked.length} / 3</p>
         <Fretboard activeCells={picked} onCellClick={click} highlight={{ rootIndex: -1, steps: [] }} />
@@ -350,7 +367,7 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
               fb === "ok" ? "border-sage bg-sage-dim text-sage" : "border-danger bg-danger-dim text-danger",
             )}
           >
-            <span>{fb === "ok" ? "Exact." : `Degrés : ${target.q.degrees}`}</span>
+            <span>{fb === "ok" ? t("iv.exact") : `${t("ch.degrees")} : ${target.q.degrees}`}</span>
             <Button
               variant="outline"
               className="border-current text-inherit"
@@ -364,7 +381,7 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
                 }
               }}
             >
-              {round + 1 >= total ? "Résultat" : "Suivant"}
+              {round + 1 >= total ? t("ui.result") : t("ui.next")}
             </Button>
           </div>
         )}
@@ -383,14 +400,16 @@ function ChordExercise({ onFinish }: { onFinish: (p: number) => void }) {
         newTarget();
       }}
       onBack={() => nav({ to: "/parcours" })}
-      perfect="Triades acquises."
-      ok="Revois les degrés de chaque couleur."
+      perfect={t("ch.perfect")}
+      ok={t("ch.ok")}
     />
   );
 }
 
 function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [tempo, setTempo] = useState(90);
+  const t = useT();
+  const lang = useLang();
   const [phase, setPhase] = useState<"idle" | "run" | "done">("idle");
   const [beat, setBeat] = useState(-1);
   const [rows, setRows] = useState<{ percent: number; result: { diff: number | null; verdict: string }[] } | null>(
@@ -451,19 +470,19 @@ function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
   return (
     <>
       <p className="mb-5 max-w-xl text-[15px] leading-relaxed text-muted">
-        En 4/4, la ronde dure la mesure, la blanche la moitié, la noire un temps, la croche un demi-temps.
+        {t("rh.intro")}
       </p>
       <div className="mb-8 grid grid-cols-4 gap-2 rounded-md border border-line bg-surface p-4">
         {NOTE_VALUES.map((n) => (
           <div key={n.id} className="text-center">
             <NoteSymbol type={n.id} />
-            <p className="mt-1 mb-0 text-sm">{n.label}</p>
-            <p className="m-0 font-mono text-xs text-subtle">{n.beats} t</p>
+            <p className="mt-1 mb-0 text-sm">{lang === "en" ? n.labelEn : n.label}</p>
+            <p className="m-0 font-mono text-xs text-subtle">{n.beats} {t("rh.beats")}</p>
           </div>
         ))}
       </div>
-      <h2 className="mb-1 font-display text-lg">Cale-toi sur le tempo</h2>
-      <p className="mb-4 text-sm text-subtle">8 clics. Tape le cercle le plus près possible de chaque temps.</p>
+      <h2 className="mb-1 font-display text-lg">{t("rh.title")}</h2>
+      <p className="mb-4 text-sm text-subtle">{t("rh.sub")}</p>
       {phase !== "run" && (
         <div className="mb-5 flex items-center gap-3">
           <span className="font-mono text-xs text-subtle">60</span>
@@ -487,7 +506,7 @@ function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
             beat >= 0 ? "border-gold bg-raised" : "border-line bg-surface",
           )}
         >
-          {phase === "run" ? "Tape ici" : phase === "done" ? "Recommencer" : "Démarrer"}
+          {phase === "run" ? t("rh.tap") : phase === "done" ? t("rh.restart") : t("rh.start")}
         </button>
         {phase === "run" && (
           <div className="flex gap-1.5">
@@ -500,7 +519,7 @@ function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
           <div className="w-full">
             <p className="m-0 text-center font-display text-2xl">{rows.percent} %</p>
             <p className="mb-4 text-center text-sm text-subtle">
-              {rows.percent >= 80 ? "Excellent sens du tempo." : "Écoute deux mesures avant de te lancer."}
+              {rows.percent >= 80 ? t("rh.great") : t("rh.advice")}
             </p>
             <div className="flex flex-wrap justify-center gap-1.5">
               {rows.result.map((r, i) => (
@@ -518,7 +537,7 @@ function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
               ))}
             </div>
             <div className="mt-6 flex justify-center">
-              <Button onClick={() => nav({ to: "/parcours" })}>Continuer</Button>
+              <Button onClick={() => nav({ to: "/parcours" })}>{t("ui.continue")}</Button>
             </div>
           </div>
         )}
@@ -533,17 +552,19 @@ function MancheExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [round, setRound] = useState(0);
   const [score, setScore] = useState(0);
   const total = 6;
+  const t = useT();
+  const nn = useNN();
   const nav = useNavigate();
 
   return (
     <>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Clique n'importe quelle case qui porte la note demandée. Le manche entier répète les 12 sons.
+        {t("nk.intro")}
       </p>
       <p className="mb-2 font-mono text-xs text-subtle">
-        {round + 1} / {total} · score {score}
+        {round + 1} / {total} · {t("ui.score").toLowerCase()} {score}
       </p>
-      <h2 className="mb-4 font-display text-xl">Trouve un {NOTES[target]}</h2>
+      <h2 className="mb-4 font-display text-xl">{t("nk.find")} {nn[target]}</h2>
       <Fretboard
         hear
         highlight={{ rootIndex: fb ? target : -1, steps: fb ? [0] : [] }}
@@ -556,7 +577,7 @@ function MancheExercise({ onFinish }: { onFinish: (p: number) => void }) {
       />
       {fb && (
         <div className="mt-4 flex justify-between">
-          <span className={fb === "ok" ? "text-sage" : "text-danger"}>{fb === "ok" ? "Bien vu." : `C'était ${NOTES[target]}.`}</span>
+          <span className={fb === "ok" ? "text-sage" : "text-danger"}>{fb === "ok" ? t("nk.good") : `${t("nk.was")} ${nn[target]}.`}</span>
           <Button
             onClick={() => {
               if (round + 1 >= total) {
@@ -569,7 +590,7 @@ function MancheExercise({ onFinish }: { onFinish: (p: number) => void }) {
               }
             }}
           >
-            {round + 1 >= total ? "Terminer" : "Suivant"}
+            {round + 1 >= total ? t("ui.finishLesson") : t("ui.next")}
           </Button>
         </div>
       )}
@@ -589,13 +610,15 @@ function ExploreThenQuiz({
 }) {
   const [step, setStep] = useState<"explore" | "quiz" | "recap">("explore");
   const [pct, setPct] = useState(0);
+  const t = useT();
+  const lang = useLang();
   const nav = useNavigate();
   if (step === "explore") {
     return (
       <>
         {children}
         <Button className="mt-6" onClick={() => setStep("quiz")}>
-          Valider avec le quiz
+          {t("ui.validateQuiz")}
         </Button>
       </>
     );
@@ -603,7 +626,7 @@ function ExploreThenQuiz({
   if (step === "quiz") {
     return (
       <QuizBlock
-        questions={QUIZZES[quizId]}
+        questions={quizFor(lang, quizId)}
         onDone={(p) => {
           setPct(p);
           onFinish(p);
@@ -618,29 +641,31 @@ function ExploreThenQuiz({
       total={0}
       onRetry={() => setStep("quiz")}
       onBack={() => nav({ to: "/parcours" })}
-      perfect="Validé. Direction la leçon suivante."
-      ok="Sous les 60 % : revois l'explorateur ci-dessus puis retente."
+      perfect={t("ui.validated")}
+      ok={t("ui.below60")}
     />
   );
 }
 
 function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(0);
+  const t = useT();
+  const nn = useNN();
   const steps = [0, 2, 4, 5, 7, 9, 11];
   return (
     <ExploreThenQuiz quizId="gamme-maj" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Tonique → T T ½ T T T ½. Les accords I, IV, V se construisent sur les 1er, 4e et 5e degrés.
+        {t("mj.intro")}
       </p>
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {NOTES.map((n, i) => (
+        {nn.map((n, i) => (
           <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
             {n}
           </Chip>
         ))}
       </div>
       <p className="mb-3 font-mono text-xs text-subtle">
-        {steps.map((s) => NOTES[(root + s) % 12]).join(" · ")}
+        {steps.map((s) => nn[(root + s) % 12]).join(" · ")}
       </p>
       <div className="mb-4">
         <Fretboard highlight={{ rootIndex: root, steps }} hear />
@@ -657,7 +682,7 @@ function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
                 playChordNow(root, ch.rootOffset, ch.quality.formula);
               }}
             >
-              {ch.numeral} {NOTES[ch.rootNoteIndex]}
+              {ch.numeral} {nn[ch.rootNoteIndex]}
             </Button>
           );
         })}
@@ -669,14 +694,17 @@ function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
 function ScalesExplorer({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(9);
   const [sid, setSid] = useState<"majeure" | "mineure" | "harm-min" | "mel-min">("mineure");
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const scale = SCALES.find((s) => s.id === sid)!;
   return (
     <ExploreThenQuiz quizId="gammes" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Compare majeure, mineure naturelle, harmonique (7e haussée) et mélodique (6e et 7e haussées).
+        {t("sc.intro")}
       </p>
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {NOTES.map((n, i) => (
+        {nn.map((n, i) => (
           <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
             {n}
           </Chip>
@@ -685,7 +713,7 @@ function ScalesExplorer({ onFinish }: { onFinish: (p: number) => void }) {
       <div className="mb-4 flex flex-wrap gap-1.5">
         {(["majeure", "mineure", "harm-min", "mel-min"] as const).map((id) => (
           <Chip key={id} tone="sage" active={sid === id} onClick={() => setSid(id)}>
-            {SCALES.find((s) => s.id === id)!.label}
+            {lang === "en" ? SCALES.find((s) => s.id === id)!.labelEn : SCALES.find((s) => s.id === id)!.label}
           </Chip>
         ))}
       </div>
@@ -696,23 +724,26 @@ function ScalesExplorer({ onFinish }: { onFinish: (p: number) => void }) {
 
 function ModesExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [deg, setDeg] = useState(0);
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const parent = 0;
   const modeRoot = (parent + [0, 2, 4, 5, 7, 9, 11][deg]) % 12;
   const steps = [0, 2, 4, 5, 7, 9, 11].map((s) => (s - [0, 2, 4, 5, 7, 9, 11][deg] + 12) % 12).sort((a, b) => a - b);
   return (
     <ExploreThenQuiz quizId="modes" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Même notes que Do majeur, centre déplacé. Écoute la couleur de chaque mode.
+        {t("mo.intro")}
       </p>
       <div className="mb-4 flex flex-wrap gap-1.5">
         {MODES_MAJOR.map((m, i) => (
           <Chip key={m.name} active={i === deg} onClick={() => setDeg(i)}>
-            {m.name}
+            {lang === "en" ? m.nameEn : m.name}
           </Chip>
         ))}
       </div>
       <p className="mb-3 text-sm text-muted">
-        {NOTES[modeRoot]} {MODES_MAJOR[deg].name} — {MODES_MAJOR[deg].color}
+        {nn[modeRoot]} {lang === "en" ? MODES_MAJOR[deg].nameEn : MODES_MAJOR[deg].name} — {lang === "en" ? MODES_MAJOR[deg].colorEn : MODES_MAJOR[deg].color}
       </p>
       <Fretboard highlight={{ rootIndex: modeRoot, steps }} hear />
     </ExploreThenQuiz>
@@ -722,14 +753,17 @@ function ModesExercise({ onFinish }: { onFinish: (p: number) => void }) {
 function PentaExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(4);
   const [sid, setSid] = useState<"penta-min" | "penta-maj" | "blues">("penta-min");
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const scale = SCALES.find((s) => s.id === sid)!;
   return (
     <ExploreThenQuiz quizId="pentas" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        La pentatonique mineure et la majeure sont relatives (trois demi-tons). La blues ajoute la ♭5.
+        {t("pe.intro")}
       </p>
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {NOTES.map((n, i) => (
+        {nn.map((n, i) => (
           <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
             {n}
           </Chip>
@@ -738,7 +772,7 @@ function PentaExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <div className="mb-4 flex flex-wrap gap-1.5">
         {(["penta-min", "penta-maj", "blues"] as const).map((id) => (
           <Chip key={id} tone="sage" active={sid === id} onClick={() => setSid(id)}>
-            {SCALES.find((s) => s.id === id)!.label}
+            {lang === "en" ? SCALES.find((s) => s.id === id)!.labelEn : SCALES.find((s) => s.id === id)!.label}
           </Chip>
         ))}
       </div>
@@ -749,6 +783,8 @@ function PentaExercise({ onFinish }: { onFinish: (p: number) => void }) {
 
 function CadenceExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [key, setKey] = useState(0);
+  const t = useT();
+  const nn = useNN();
   const playProg = async (degrees: number[]) => {
     const ctx = await resumeAudio();
     const now = ctx.currentTime + 0.05;
@@ -762,10 +798,10 @@ function CadenceExercise({ onFinish }: { onFinish: (p: number) => void }) {
   return (
     <ExploreThenQuiz quizId="cadences" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Écoute les cadences dans n'importe quelle tonalité. V–I conclut, IV–I adoucit, ii–V–I est le moteur jazz.
+        {t("ca.intro")}
       </p>
       <div className="mb-4 flex flex-wrap gap-1.5">
-        {NOTES.map((n, i) => (
+        {nn.map((n, i) => (
           <Chip key={n} active={i === key} onClick={() => setKey(i)}>
             {n}
           </Chip>
@@ -790,14 +826,19 @@ function CadenceExercise({ onFinish }: { onFinish: (p: number) => void }) {
 function ExoticExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(0);
   const [sid, setSid] = useState<"whole" | "hw-dim" | "harm-min">("whole");
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const scale = SCALES.find((s) => s.id === sid)!;
   return (
-    <>
+    <ExploreThenQuiz quizId="modes-exo" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Par tons, diminuée et mineure harmonique : trois palettes hors du majeur/mineur quotidien.
+        {lang === "en"
+          ? "Whole-tone, diminished and harmonic minor: three palettes beyond everyday major/minor."
+          : "Par tons, diminuée et mineure harmonique : trois palettes hors du majeur/mineur quotidien."}
       </p>
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {NOTES.map((n, i) => (
+        {nn.map((n, i) => (
           <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
             {n}
           </Chip>
@@ -806,23 +847,20 @@ function ExoticExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <div className="mb-4 flex flex-wrap gap-1.5">
         {(["whole", "hw-dim", "harm-min"] as const).map((id) => (
           <Chip key={id} tone="sage" active={sid === id} onClick={() => setSid(id)}>
-            {SCALES.find((s) => s.id === id)!.label}
+            {lang === "en" ? SCALES.find((s) => s.id === id)!.labelEn : SCALES.find((s) => s.id === id)!.label}
           </Chip>
         ))}
       </div>
       <Fretboard highlight={{ rootIndex: root, steps: scale.steps }} hear />
-      <Button className="mt-6" onClick={() => onFinish(100)}>
-        Marquer comme vue
-      </Button>
-      <p className="mt-3 max-w-xl text-xs leading-relaxed text-subtle">
-        Leçon d'exploration : pas de quiz bloquant ici, l'examen Expert validera l'ensemble.
-      </p>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
 function ReharmoExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const key = 0;
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const play = async (useSub: boolean) => {
     await resumeAudio();
     const prog = useSub ? [1, 4, 0] : [1, 4, 0];
@@ -848,9 +886,11 @@ function ReharmoExercise({ onFinish }: { onFinish: (p: number) => void }) {
     void prog;
   };
   return (
-    <>
+    <ExploreThenQuiz quizId="reharmo" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        En Do, le V7 est Sol7. Un triton plus loin : Ré♭7. Les deux mènent à Do. Écoute la version diatonique, puis la substitution.
+        {lang === "en"
+          ? `In ${nn[0]}, V7 is ${nn[7]}7. A tritone away: D♭7. Both lead home. Hear the diatonic version, then the substitution.`
+          : `En ${nn[0]}, le V7 est ${nn[7]}7. Un triton plus loin : Ré♭7. Les deux mènent à ${nn[0]}. Écoute la version diatonique, puis la substitution.`}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => play(false)}>
@@ -860,10 +900,7 @@ function ReharmoExercise({ onFinish }: { onFinish: (p: number) => void }) {
           ii – ♭II7 – I
         </Button>
       </div>
-      <Button className="mt-6" onClick={() => onFinish(100)}>
-        Marquer comme vue
-      </Button>
-    </>
+    </ExploreThenQuiz>
   );
 }
 
@@ -871,9 +908,13 @@ function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(0);
   const [qid, setQid] = useState<(typeof CHORD_QUALITIES)[number]["id"]>("maj");
   const [inv, setInv] = useState(0);
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const quality = CHORD_QUALITIES.find((q) => q.id === qid)!;
   const voicing = inversionVoicing(quality.formula, inv);
-  const bassNote = NOTES[(root + voicing[0]) % 12];
+  const bassNote = nn[(root + voicing[0]) % 12];
+  const qName = (lang === "en" ? quality.labelEn : quality.label).toLowerCase();
 
   const playVoicing = async () => {
     const ctx = await resumeAudio();
@@ -887,13 +928,13 @@ function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
   return (
     <ExploreThenQuiz quizId="voicings" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Mêmes notes, basse différente : écoute comment le renversement change la couleur. Puis repère les 5 formes CAGED sur le manche.
+        {t("vo.intro")}
       </p>
       <div className="mb-3 flex flex-wrap gap-6">
         <div>
-          <p className="mb-2 font-mono text-[11px] text-subtle">Fondamentale</p>
+          <p className="mb-2 font-mono text-[11px] text-subtle">{t("ch.root")}</p>
           <div className="flex max-w-xs flex-wrap gap-1.5">
-            {NOTES.map((n, i) => (
+            {nn.map((n, i) => (
               <Chip key={n} active={i === root} onClick={() => setRoot(i)}>
                 {n}
               </Chip>
@@ -901,11 +942,11 @@ function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
           </div>
         </div>
         <div>
-          <p className="mb-2 font-mono text-[11px] text-subtle">Qualité</p>
+          <p className="mb-2 font-mono text-[11px] text-subtle">{t("vo.quality")}</p>
           <div className="flex flex-wrap gap-1.5">
             {CHORD_QUALITIES.filter((q) => q.formula.length === 3).map((q) => (
               <Chip key={q.id} tone="sage" active={q.id === qid} onClick={() => setQid(q.id)}>
-                {q.label}
+                {lang === "en" ? q.labelEn : q.label}
               </Chip>
             ))}
           </div>
@@ -914,19 +955,19 @@ function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
       <div className="mb-3 flex flex-wrap gap-1.5">
         {INVERSIONS.map((v) => (
           <Chip key={v.id} active={inv === v.id} onClick={() => setInv(v.id)}>
-            {v.label}
+            {lang === "en" ? v.labelEn : v.label}
           </Chip>
         ))}
       </div>
       <p className="mb-3 text-sm text-muted">
-        {NOTES[root]} {quality.label.toLowerCase()} · {INVERSIONS[inv].label} · basse : {bassNote} · {INVERSIONS[inv].explain}
+        {nn[root]} {qName} · {lang === "en" ? INVERSIONS[inv].labelEn : INVERSIONS[inv].label} · {t("vo.bass")} : {bassNote} · {lang === "en" ? INVERSIONS[inv].explainEn : INVERSIONS[inv].explain}
       </p>
       <div className="mb-3">
         <Fretboard highlight={{ rootIndex: root, steps: quality.formula }} hear />
       </div>
       <div className="mb-6 flex flex-wrap gap-2">
         <Button variant="outline" onClick={playVoicing}>
-          Écouter le voicing (arpège + basse)
+          {t("vo.hear")}
         </Button>
       </div>
       <div className="mb-2 grid gap-2 sm:grid-cols-2">
@@ -936,7 +977,7 @@ function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
               {c.id} · {c.label}
             </p>
             <p className="m-0 font-mono text-xs text-muted">{c.frets}</p>
-            <p className="mt-1 mb-0 text-xs text-subtle">{c.explain}</p>
+            <p className="mt-1 mb-0 text-xs text-subtle">{lang === "en" ? c.explainEn : c.explain}</p>
           </div>
         ))}
       </div>
@@ -944,11 +985,306 @@ function VoicingsExercise({ onFinish }: { onFinish: (p: number) => void }) {
   );
 }
 
+function AnalyseExercise({ onFinish }: { onFinish: (p: number) => void }) {
+  const t = useT();
+  const lang = useLang();
+  const [open, setOpen] = useState<string | null>(null);
+
+  async function playDiatonicSeq(degrees: number[]) {
+    const ctx = await resumeAudio();
+    const now = ctx.currentTime + 0.05;
+    degrees.forEach((d, i) => {
+      const ch = degreeChord(0, "majeure", d);
+      ch.quality.formula.forEach((iv) => {
+        playTone(ctx, freqForOffset(0, ch.rootOffset + iv), now + i * 0.7, 0.65, 0.1);
+      });
+    });
+  }
+
+  async function playCustomSeq(chords: { root: number; formula: readonly number[] }[], keyRoot: number) {
+    const ctx = await resumeAudio();
+    const now = ctx.currentTime + 0.05;
+    chords.forEach((ch, i) => {
+      ch.formula.forEach((iv) => {
+        playTone(ctx, freqForOffset(keyRoot, ch.root + iv), now + i * 0.8, 0.75, 0.1);
+      });
+    });
+  }
+
+  return (
+    <ExploreThenQuiz quizId="analyse" onFinish={onFinish}>
+      <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
+        {lang === "en"
+          ? "Three famous grids, dissected: listen, reveal the degrees, read the trick."
+          : "Trois grilles célèbres, décortiquées : écoute, révèle les degrés, lis l'astuce."}
+      </p>
+      <div className="grid gap-3">
+        <AnalysisCard
+          id="pachelbel"
+          title="Pachelbel – Canon"
+          numerals="I – V – vi – iii – IV – I – IV – V"
+          open={open}
+          setOpen={setOpen}
+          analysis={t("an.pachelbel")}
+          onHear={() => playDiatonicSeq([0, 4, 5, 2, 3, 0, 3, 4])}
+        />
+        <AnalysisCard
+          id="creep"
+          title={lang === "en" ? "Radiohead – Creep (G)" : "Radiohead – Creep (Sol)"}
+          numerals="I – III – IV – iv"
+          open={open}
+          setOpen={setOpen}
+          analysis={t("an.creep")}
+          onHear={() => playCustomSeq([
+            { root: 7, formula: [0, 4, 7] },
+            { root: 11, formula: [0, 4, 7] },
+            { root: 0, formula: [0, 4, 7] },
+            { root: 0, formula: [0, 3, 7] },
+          ], 0)}
+        />
+        <AnalysisCard
+          id="blues"
+          title={lang === "en" ? "A blues – 12 bars" : "Blues en La – 12 mesures"}
+          numerals="I7 · I7 · IV7 · I7 · V7 · IV7 · I7 · V7"
+          open={open}
+          setOpen={setOpen}
+          analysis={t("an.blues")}
+          onHear={() => playCustomSeq([0, 0, 5, 0, 7, 5, 0, 7].map((r) => ({ root: 9 + r, formula: [0, 4, 7, 10] })), 9)}
+        />
+      </div>
+    </ExploreThenQuiz>
+  );
+}
+
+function AnalysisCard({
+  id, title, numerals, open, setOpen, analysis, onHear,
+}: {
+  id: string;
+  title: string;
+  numerals: string;
+  open: string | null;
+  setOpen: (v: string | null) => void;
+  analysis: string;
+  onHear: () => void;
+}) {
+  const t = useT();
+  const isOpen = open === id;
+  return (
+    <div className="rounded-lg border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="m-0 font-display text-lg">{title}</p>
+        <span className="font-mono text-xs text-gold">{numerals}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={onHear}>
+          {t("an.hear")}
+        </Button>
+        <Button variant="outline" onClick={() => setOpen(isOpen ? null : id)}>
+          {t("an.read")}
+        </Button>
+      </div>
+      {isOpen && <p className="mt-3 mb-0 text-sm leading-relaxed text-muted">{analysis}</p>}
+    </div>
+  );
+}
+
+function SecondairesExercise({ onFinish }: { onFinish: (p: number) => void }) {
+  const t = useT();
+  const key = 0;
+
+  const playSeq = async (chords: { rootOffset: number; formula?: readonly number[]; quality?: { formula: readonly number[] } }[]) => {
+    const ctx = await resumeAudio();
+    const now = ctx.currentTime + 0.05;
+    chords.forEach((ch, i) => {
+      const formula = ch.formula ?? ch.quality!.formula;
+      formula.forEach((iv) => {
+        playTone(ctx, freqForOffset(key, ch.rootOffset + iv), now + i * 0.85, 0.8, 0.11);
+      });
+    });
+  };
+
+  const diat = [1, 4, 0].map((d) => degreeChord(key, "majeure", d));
+  const withSec = [
+    { rootOffset: 9, formula: [0, 4, 7, 10] as readonly number[] },
+    degreeChord(key, "majeure", 1),
+    degreeChord(key, "majeure", 4),
+    degreeChord(key, "majeure", 0),
+  ];
+  const modal = [
+    { rootOffset: 5, formula: [0, 3, 7] as readonly number[] },
+    degreeChord(key, "majeure", 0),
+  ];
+
+  return (
+    <ExploreThenQuiz quizId="secondaires" onFinish={onFinish}>
+      <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">{t("se.intro")}</p>
+      <div className="flex flex-col gap-2">
+        <button type="button" onClick={() => playSeq(diat)} className="rounded-md border border-line bg-surface px-4 py-3 text-left text-sm hover:border-gold">
+          {t("se.diat")}
+        </button>
+        <button type="button" onClick={() => playSeq(withSec)} className="rounded-md border border-line bg-surface px-4 py-3 text-left text-sm hover:border-gold">
+          {t("se.sec")}
+        </button>
+        <button type="button" onClick={() => playSeq(modal)} className="rounded-md border border-line bg-surface px-4 py-3 text-left text-sm hover:border-gold">
+          {t("se.modal")}
+        </button>
+      </div>
+    </ExploreThenQuiz>
+  );
+}
+
+function VoixExercise({ onFinish }: { onFinish: (p: number) => void }) {
+  const t = useT();
+
+  const play = async (smooth: boolean) => {
+    const ctx = await resumeAudio();
+    const now = ctx.currentTime + 0.05;
+    const firstVoicing = smooth ? [7, 12, 16] : [0, 4, 7];
+    const second = [7, 11, 14];
+    [firstVoicing, second].forEach((chord, i) => {
+      chord.forEach((iv) => {
+        playTone(ctx, freqForOffset(0, iv), now + i * 1.1, 1.0, 0.13);
+      });
+    });
+  };
+
+  return (
+    <ExploreThenQuiz quizId="voix" onFinish={onFinish}>
+      <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">{t("vx.intro")}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => play(false)}>
+          {t("vx.jumpy")}
+        </Button>
+        <Button variant="outline" onClick={() => play(true)}>
+          {t("vx.smooth")}
+        </Button>
+      </div>
+      <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
+        {t("vx.rule")}
+      </p>
+    </ExploreThenQuiz>
+  );
+}
+
+function MetriquesExercise({ onFinish }: { onFinish: (p: number) => void }) {
+  const t = useT();
+  return (
+    <ExploreThenQuiz quizId="metriques" onFinish={onFinish}>
+      <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">{t("me.intro")}</p>
+      <OddMeterTap beats={5} groups={[3, 2]} />
+      <div className="mt-6">
+        <OddMeterTap beats={7} groups={[2, 2, 3]} />
+      </div>
+    </ExploreThenQuiz>
+  );
+}
+
+function OddMeterTap({ beats, groups }: { beats: number; groups: number[] }) {
+  const t = useT();
+  const [phase, setPhase] = useState<"idle" | "run" | "done">("idle");
+  const [beat, setBeat] = useState(-1);
+  const [pct, setPct] = useState<number | null>(null);
+  const timers = useState<number[]>([])[0];
+  const expected: { current: number[] } = useState({ current: [] as number[] })[0];
+  const taps: { current: number[] } = useState({ current: [] as number[] })[0];
+  const groupOf = (i: number) => {
+    let acc = 0;
+    for (let g = 0; g < groups.length; g++) {
+      acc += groups[g];
+      if (i < acc) return g;
+    }
+    return 0;
+  };
+  const groupStarts = groups.reduce((acc: number[], g) => [...acc, (acc[acc.length - 1] ?? 0) + g], []);
+
+  const start = async () => {
+    const ctx = await resumeAudio();
+    timers.splice(0).forEach((tm) => clearTimeout(tm));
+    setPhase("run");
+    setPct(null);
+    setBeat(-1);
+    const beatSec = 0.55;
+    const lead = 0.4;
+    const startCtx = ctx.currentTime + lead;
+    const startPerf = performance.now() + lead * 1000;
+    expected.current = Array.from({ length: beats }, (_, i) => startPerf + i * beatSec * 1000);
+    taps.current = [];
+    for (let i = 0; i < beats; i++) {
+      playClick(ctx, startCtx + i * beatSec, groupStarts.includes(i));
+    }
+    expected.current.forEach((tm, i) => {
+      timers.push(window.setTimeout(() => setBeat(i), Math.max(0, tm - performance.now())));
+    });
+    timers.push(
+      window.setTimeout(() => {
+        setBeat(-1);
+        const tapObjs = taps.current.map((tm) => ({ time: tm, used: false }));
+        let points = 0;
+        expected.current.forEach((tm) => {
+          let best = -1;
+          let bestDiff = Infinity;
+          tapObjs.forEach((tap, idx) => {
+            if (tap.used) return;
+            const d = Math.abs(tap.time - tm);
+            if (d < bestDiff) {
+              bestDiff = d;
+              best = idx;
+            }
+          });
+          if (best !== -1 && bestDiff <= 240) {
+            tapObjs[best].used = true;
+            points += bestDiff <= 70 ? 2 : bestDiff <= 160 ? 1 : 0;
+          }
+        });
+        setPct(Math.round((points / (beats * 2)) * 100));
+        setPhase("done");
+      }, expected.current[beats - 1] - performance.now() + 700),
+    );
+  };
+
+  return (
+    <div className="rounded-md border border-line bg-surface p-4">
+      <p className="mb-1 font-mono text-xs text-gold">
+        {beats}/{beats === 5 ? "4" : "8"} · {groups.join("+")}
+      </p>
+      {phase === "run" && (
+        <div className="mb-3 flex gap-1.5">
+          {Array.from({ length: beats }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "flex h-7 flex-1 items-center justify-center rounded-sm font-mono text-[11px]",
+                i <= beat ? "bg-gold text-accent-fg" : "bg-raised text-subtle",
+              )}
+            >
+              {groupOf(i) + 1}
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => (phase === "run" ? taps.current.push(performance.now()) : start())}
+        className={cn(
+          "w-full rounded-md border-2 py-4 text-sm font-medium",
+          beat >= 0 ? "border-gold bg-raised" : "border-line bg-bg",
+        )}
+      >
+        {phase === "run" ? t("me.tap") : phase === "done" ? t("me.again") : t("me.start")}
+      </button>
+      {phase === "done" && pct != null && (
+        <p className="m-0 mt-3 text-center font-display text-xl">{pct} %</p>
+      )}
+    </div>
+  );
+}
+
 function MelodyMini({ onFinish }: { onFinish: (p: number) => void }) {
+  const t = useT();
   return (
     <>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Ouvre le studio : pose une grille I–V–vi–IV, puis une mélodie sur les degrés de la gamme. Vise les notes de l'accord sur les temps forts.
+        {t("st.melodyHint")}
       </p>
       <StudioEmbed onSaved={() => onFinish(100)} />
     </>
@@ -956,13 +1292,14 @@ function MelodyMini({ onFinish }: { onFinish: (p: number) => void }) {
 }
 
 function GenreMini({ onFinish }: { onFinish: (p: number) => void }) {
+  const lang = useLang();
   return (
     <>
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         {GENRES.map((g) => (
           <div key={g.id} className="rounded-md border border-line bg-surface p-4">
-            <p className="m-0 font-display text-lg">{g.label}</p>
-            <p className="mt-1 mb-0 text-sm leading-relaxed text-muted">{g.codes}</p>
+            <p className="m-0 font-display text-lg">{lang === "en" ? g.labelEn : g.label}</p>
+            <p className="mt-1 mb-0 text-sm leading-relaxed text-muted">{lang === "en" ? g.codesEn : g.codes}</p>
           </div>
         ))}
       </div>
@@ -972,10 +1309,11 @@ function GenreMini({ onFinish }: { onFinish: (p: number) => void }) {
 }
 
 function ProjetMini({ onFinish }: { onFinish: (p: number) => void }) {
+  const t = useT();
   return (
     <>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        Projet final : choisis un genre, une tonalité, une grille d'au moins 4 accords, une mélodie, et enregistre dans le carnet.
+        {t("st.projetHint")}
       </p>
       <StudioEmbed requireSave onSaved={() => onFinish(100)} />
     </>
@@ -1001,7 +1339,10 @@ export function CompositionInner({
   const [playing, setPlaying] = useState(-1);
   const [melody, setMelody] = useState<(number | null)[]>(Array(8).fill(null));
   const [genre, setGenre] = useState<string | undefined>();
-  const [title, setTitle] = useState("Sans titre");
+  const [title, setTitle] = useState("");
+  const t = useT();
+  const lang = useLang();
+  const nn = useNN();
   const savePiece = useProgress((s) => s.savePiece);
   const degrees = Array.from({ length: 7 }, (_, i) => degreeChord(keyRoot, mode, i));
   const scaleSteps = mode === "majeure" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
@@ -1042,26 +1383,31 @@ export function CompositionInner({
   };
 
   const exportText = () => {
+    const g = genre ? GENRES.find((x) => x.id === genre) : undefined;
     const lines = [
-      `${title || "Sans titre"} — ${NOTES[keyRoot]} ${mode}${genre ? ` · ${GENRES.find((g) => g.id === genre)?.label ?? genre}` : ""}`,
-      `Grille : ${progression.map((d) => `${degrees[d].numeral} (${NOTES[degrees[d].rootNoteIndex]}${degrees[d].quality.suffix})`).join(" – ")}`,
-      `Mélodie (degrés) : ${melody.map((v) => (v == null ? "–" : String(v + 1))).join(" ")}`,
+      `${title || t("st.untitled")} — ${nn[keyRoot]} ${mode === "majeure" ? (lang === "en" ? "major" : "majeure") : lang === "en" ? "minor" : "mineure"}${g ? ` · ${lang === "en" ? g.labelEn : g.label}` : ""}`,
+      `${lang === "en" ? "Progression" : "Grille"} : ${progression.map((d) => `${degrees[d].numeral} (${nn[degrees[d].rootNoteIndex]}${degrees[d].quality.suffix})`).join(" – ")}`,
+      `${lang === "en" ? "Melody (degrees)" : "Mélodie (degrés)"} : ${melody.map((v) => (v == null ? "–" : String(v + 1))).join(" ")}`,
+      "",
+      renderTabText(keyRoot, mode, progression, melody),
     ];
     downloadBytes(new TextEncoder().encode(lines.join("\n")), `${(title || "morceau").replace(/\s+/g, "-").toLowerCase()}.txt`, "text/plain");
   };
+
+  const tabText = progression.length ? renderTabText(keyRoot, mode, progression, melody) : "";
 
   return (
     <div>
       {!compact && (
         <p className="mb-5 max-w-xl text-sm leading-relaxed text-muted">
-          Tonalité, accords diatoniques, mélodie sur 8 temps, genres. Écoute, puis enregistre dans le carnet.
+          {t("st.sub")}
         </p>
       )}
       <div className="mb-5 flex flex-wrap gap-6">
         <div>
-          <p className="mb-2 font-mono text-[11px] text-subtle">Tonalité</p>
+          <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.key")}</p>
           <div className="flex max-w-xs flex-wrap gap-1.5">
-            {NOTES.map((n, i) => (
+            {nn.map((n, i) => (
               <Chip key={n} active={i === keyRoot} onClick={() => setKeyRoot(i)}>
                 {n}
               </Chip>
@@ -1069,17 +1415,17 @@ export function CompositionInner({
           </div>
         </div>
         <div>
-          <p className="mb-2 font-mono text-[11px] text-subtle">Mode</p>
+          <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.mode")}</p>
           <div className="flex gap-1.5">
             {(["majeure", "mineure"] as const).map((m) => (
               <Chip key={m} tone="sage" active={m === mode} onClick={() => setMode(m)}>
-                {m}
+                {m === "majeure" ? (lang === "en" ? "major" : "majeure") : lang === "en" ? "minor" : "mineure"}
               </Chip>
             ))}
           </div>
         </div>
       </div>
-      <p className="mb-2 font-mono text-[11px] text-subtle">Genre</p>
+      <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.genre")}</p>
       <div className="mb-5 flex flex-wrap gap-1.5">
         {GENRES.map((g) => (
           <Chip
@@ -1091,11 +1437,11 @@ export function CompositionInner({
               setProgression([...g.progression]);
             }}
           >
-            {g.label}
+            {lang === "en" ? g.labelEn : g.label}
           </Chip>
         ))}
       </div>
-      <p className="mb-2 font-mono text-[11px] text-subtle">Accords diatoniques</p>
+      <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.degrees")}</p>
       <div className="mb-5 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {degrees.map((ch, i) => (
           <button
@@ -1106,16 +1452,16 @@ export function CompositionInner({
           >
             <p className="m-0 font-display text-lg text-gold">{ch.numeral}</p>
             <p className="m-0 font-mono text-xs text-muted">
-              {NOTES[ch.rootNoteIndex]}
+              {nn[ch.rootNoteIndex]}
               {ch.quality.suffix}
             </p>
           </button>
         ))}
       </div>
       <div className="mb-5 rounded-md border border-line bg-raised p-4">
-        <p className="mb-3 font-mono text-[11px] text-subtle">Progression</p>
+        <p className="mb-3 font-mono text-[11px] text-subtle">{t("st.prog")}</p>
         {progression.length === 0 ? (
-          <p className="text-sm text-subtle">Ajoute des accords.</p>
+          <p className="text-sm text-subtle">{t("st.addChords")}</p>
         ) : (
           <div className="mb-3 flex flex-wrap gap-2">
             {progression.map((d, i) => {
@@ -1137,7 +1483,7 @@ export function CompositionInner({
             })}
           </div>
         )}
-        <p className="mb-2 font-mono text-[11px] text-subtle">Mélodie (degré de la gamme par temps)</p>
+        <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.melody")}</p>
         <div className="mb-4 grid grid-cols-8 gap-1">
           {melody.map((v, i) => (
             <select
@@ -1164,40 +1510,40 @@ export function CompositionInner({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={playProgression} disabled={progression.length === 0}>
-            Écouter
+            {t("ui.listen")}
           </Button>
           <Button variant="outline" onClick={() => setProgression([])}>
-            Effacer accords
+            {t("st.clear")}
           </Button>
           <Button variant="outline" onClick={harmonize} disabled={progression.length === 0}>
-            Harmoniser auto
+            {t("st.harmonize")}
           </Button>
         </div>
       </div>
       <div className="mb-5 rounded-md border border-line bg-surface p-4">
-        <p className="mb-2 font-mono text-[11px] text-subtle">Assistant — que jouer après {progression.length ? degrees[progression[progression.length - 1]].numeral : "…"} ?</p>
+        <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.assist")} {progression.length ? degrees[progression[progression.length - 1]].numeral : "…"} ?</p>
         <div className="flex flex-wrap gap-2">
           {suggestions.map((s) => (
             <button
               key={s.degree}
               type="button"
-              title={s.why}
+              title={lang === "en" ? s.whyEn : s.why}
               onClick={() => progression.length < 8 && setProgression((p) => [...p, s.degree])}
               className="rounded-sm border border-line bg-bg px-3 py-2 text-left text-xs text-muted hover:border-gold hover:text-fg"
             >
-              <span className="font-display text-sm text-gold">{degrees[s.degree].numeral}</span> · {s.why}
+              <span className="font-display text-sm text-gold">{degrees[s.degree].numeral}</span> · {lang === "en" ? s.whyEn : s.why}
             </button>
           ))}
         </div>
       </div>
       <div className="mb-5 rounded-md border border-line bg-surface p-4">
-        <p className="mb-2 font-mono text-[11px] text-subtle">Bibliothèque — 12 grilles analysées</p>
+        <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.library")}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {PROGRESSION_LIBRARY.map((p) => (
             <button
               key={p.id}
               type="button"
-              title={p.analysis}
+              title={lang === "en" ? p.analysisEn : p.analysis}
               onClick={() => {
                 setProgression([...p.degrees]);
                 setMode(p.mode);
@@ -1206,36 +1552,58 @@ export function CompositionInner({
             >
               <span className="text-sm text-fg">{p.label}</span>{" "}
               <span className="font-mono text-xs text-gold">{p.numerals}</span>
-              <span className="mt-1 block text-xs leading-relaxed text-subtle">{p.analysis}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-subtle">{lang === "en" ? p.analysisEn : p.analysis}</span>
             </button>
           ))}
         </div>
       </div>
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap gap-2 no-print">
         <Button variant="outline" onClick={exportMidi} disabled={progression.length === 0}>
-          Export MIDI
+          {t("st.midi")}
         </Button>
         <Button variant="outline" onClick={exportText} disabled={progression.length === 0}>
-          Export texte / tab
+          {t("st.text")}
+        </Button>
+        <Button variant="outline" onClick={() => window.print()} disabled={progression.length === 0}>
+          {t("st.pdf")}
         </Button>
       </div>
+      {tabText && (
+        <div className="mb-5 rounded-md border border-line bg-surface p-4 no-print">
+          <p className="mb-2 font-mono text-[11px] text-subtle">{t("st.tab")}</p>
+          <pre className="overflow-x-auto font-mono text-xs leading-relaxed text-muted">{tabText}</pre>
+        </div>
+      )}
+      {/* Fiche imprimable : seule visible à l'impression (voir styles.css) */}
+      {progression.length > 0 && (
+        <div className="print-only">
+          <h1>{title || t("st.untitled")}</h1>
+          <p>
+            {nn[keyRoot]} {lang === "en" ? (mode === "majeure" ? "major" : "minor") : mode}
+            {genre ? ` · ${(() => { const g = GENRES.find((x) => x.id === genre); return g ? (lang === "en" ? g.labelEn : g.label) : genre; })()}` : ""} — Diapason
+          </p>
+          <p>{lang === "en" ? "Progression" : "Grille"} : {progression.map((d) => `${degrees[d].numeral} (${nn[degrees[d].rootNoteIndex]}${degrees[d].quality.suffix})`).join(" – ")}</p>
+          <pre>{tabText}</pre>
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs text-subtle">
-          Titre
+          {t("st.name")}
           <input
             value={title}
+            placeholder={t("st.untitled")}
             onChange={(e) => setTitle(e.target.value)}
             className="rounded-sm border border-line bg-surface px-3 py-2 text-sm text-fg"
           />
         </label>
         <Button
           onClick={() => {
-            savePiece({ title: title || "Sans titre", keyRoot, mode, progression, melody, genre });
+            savePiece({ title: title || t("st.untitled"), keyRoot, mode, progression, melody, genre });
             onSaved?.();
           }}
           disabled={requireSave && progression.length < 4}
         >
-          Enregistrer dans le carnet
+          {t("st.save")}
         </Button>
       </div>
     </div>

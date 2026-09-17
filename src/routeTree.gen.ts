@@ -10,22 +10,46 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BasseRouteImport } from './routes/basse'
+import { Route as BatterieRouteImport } from './routes/batterie'
 import { Route as CarnetRouteImport } from './routes/carnet'
 import { Route as DefiRouteImport } from './routes/defi'
 import { Route as DiagnosticRouteImport } from './routes/diagnostic'
 import { Route as ExamensRouteImport } from './routes/examens'
+import { Route as GalerieRouteImport } from './routes/galerie'
 import { Route as JeuxRouteImport } from './routes/jeux'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MancheRouteImport } from './routes/manche'
+import { Route as MemosRouteImport } from './routes/memos'
 import { Route as OreilleRouteImport } from './routes/oreille'
+import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as ParcoursRouteImport } from './routes/parcours'
+import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as ProgressionRouteImport } from './routes/progression'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as BasseExamenRouteImport } from './routes/basse.examen'
+import { Route as BasseParcoursRouteImport } from './routes/basse.parcours'
+import { Route as BatterieExamenRouteImport } from './routes/batterie.examen'
+import { Route as BatterieParcoursRouteImport } from './routes/batterie.parcours'
 import { Route as JeuxIdRouteImport } from './routes/jeux.$id'
 import { Route as LeconIdRouteImport } from './routes/lecon.$id'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
+import { Route as BasseLeconIdRouteImport } from './routes/basse.lecon.$id'
+import { Route as BatterieLeconIdRouteImport } from './routes/batterie.lecon.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BasseRoute = BasseRouteImport.update({
+  id: '/basse',
+  path: '/basse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BatterieRoute = BatterieRouteImport.update({
+  id: '/batterie',
+  path: '/batterie',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CarnetRoute = CarnetRouteImport.update({
@@ -48,9 +72,19 @@ const ExamensRoute = ExamensRouteImport.update({
   path: '/examens',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GalerieRoute = GalerieRouteImport.update({
+  id: '/galerie',
+  path: '/galerie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JeuxRoute = JeuxRouteImport.update({
   id: '/jeux',
   path: '/jeux',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MancheRoute = MancheRouteImport.update({
@@ -58,14 +92,29 @@ const MancheRoute = MancheRouteImport.update({
   path: '/manche',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MemosRoute = MemosRouteImport.update({
+  id: '/memos',
+  path: '/memos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OreilleRoute = OreilleRouteImport.update({
   id: '/oreille',
   path: '/oreille',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParametresRoute = ParametresRouteImport.update({
+  id: '/parametres',
+  path: '/parametres',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ParcoursRoute = ParcoursRouteImport.update({
   id: '/parcours',
   path: '/parcours',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfilRoute = ProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProgressionRoute = ProgressionRouteImport.update({
@@ -78,6 +127,26 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BasseExamenRoute = BasseExamenRouteImport.update({
+  id: '/examen',
+  path: '/examen',
+  getParentRoute: () => BasseRoute,
+} as any)
+const BasseParcoursRoute = BasseParcoursRouteImport.update({
+  id: '/parcours',
+  path: '/parcours',
+  getParentRoute: () => BasseRoute,
+} as any)
+const BatterieExamenRoute = BatterieExamenRouteImport.update({
+  id: '/examen',
+  path: '/examen',
+  getParentRoute: () => BatterieRoute,
+} as any)
+const BatterieParcoursRoute = BatterieParcoursRouteImport.update({
+  id: '/parcours',
+  path: '/parcours',
+  getParentRoute: () => BatterieRoute,
+} as any)
 const JeuxIdRoute = JeuxIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -88,114 +157,221 @@ const LeconIdRoute = LeconIdRouteImport.update({
   path: '/lecon/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BasseLeconIdRoute = BasseLeconIdRouteImport.update({
+  id: '/lecon/$id',
+  path: '/lecon/$id',
+  getParentRoute: () => BasseRoute,
+} as any)
+const BatterieLeconIdRoute = BatterieLeconIdRouteImport.update({
+  id: '/lecon/$id',
+  path: '/lecon/$id',
+  getParentRoute: () => BatterieRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/basse': typeof BasseRouteWithChildren
+  '/batterie': typeof BatterieRouteWithChildren
   '/carnet': typeof CarnetRoute
   '/defi': typeof DefiRoute
   '/diagnostic': typeof DiagnosticRoute
   '/examens': typeof ExamensRoute
+  '/galerie': typeof GalerieRoute
   '/jeux': typeof JeuxRouteWithChildren
+  '/login': typeof LoginRoute
   '/manche': typeof MancheRoute
+  '/memos': typeof MemosRoute
   '/oreille': typeof OreilleRoute
+  '/parametres': typeof ParametresRoute
   '/parcours': typeof ParcoursRoute
+  '/profil': typeof ProfilRoute
   '/progression': typeof ProgressionRoute
   '/studio': typeof StudioRoute
+  '/basse/examen': typeof BasseExamenRoute
+  '/basse/parcours': typeof BasseParcoursRoute
+  '/batterie/examen': typeof BatterieExamenRoute
+  '/batterie/parcours': typeof BatterieParcoursRoute
   '/jeux/$id': typeof JeuxIdRoute
   '/lecon/$id': typeof LeconIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/basse/lecon/$id': typeof BasseLeconIdRoute
+  '/batterie/lecon/$id': typeof BatterieLeconIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/basse': typeof BasseRouteWithChildren
+  '/batterie': typeof BatterieRouteWithChildren
   '/carnet': typeof CarnetRoute
   '/defi': typeof DefiRoute
   '/diagnostic': typeof DiagnosticRoute
   '/examens': typeof ExamensRoute
+  '/galerie': typeof GalerieRoute
   '/jeux': typeof JeuxRouteWithChildren
+  '/login': typeof LoginRoute
   '/manche': typeof MancheRoute
+  '/memos': typeof MemosRoute
   '/oreille': typeof OreilleRoute
+  '/parametres': typeof ParametresRoute
   '/parcours': typeof ParcoursRoute
+  '/profil': typeof ProfilRoute
   '/progression': typeof ProgressionRoute
   '/studio': typeof StudioRoute
+  '/basse/examen': typeof BasseExamenRoute
+  '/basse/parcours': typeof BasseParcoursRoute
+  '/batterie/examen': typeof BatterieExamenRoute
+  '/batterie/parcours': typeof BatterieParcoursRoute
   '/jeux/$id': typeof JeuxIdRoute
   '/lecon/$id': typeof LeconIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/basse/lecon/$id': typeof BasseLeconIdRoute
+  '/batterie/lecon/$id': typeof BatterieLeconIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/basse': typeof BasseRouteWithChildren
+  '/batterie': typeof BatterieRouteWithChildren
   '/carnet': typeof CarnetRoute
   '/defi': typeof DefiRoute
   '/diagnostic': typeof DiagnosticRoute
   '/examens': typeof ExamensRoute
+  '/galerie': typeof GalerieRoute
   '/jeux': typeof JeuxRouteWithChildren
+  '/login': typeof LoginRoute
   '/manche': typeof MancheRoute
+  '/memos': typeof MemosRoute
   '/oreille': typeof OreilleRoute
+  '/parametres': typeof ParametresRoute
   '/parcours': typeof ParcoursRoute
+  '/profil': typeof ProfilRoute
   '/progression': typeof ProgressionRoute
   '/studio': typeof StudioRoute
+  '/basse/examen': typeof BasseExamenRoute
+  '/basse/parcours': typeof BasseParcoursRoute
+  '/batterie/examen': typeof BatterieExamenRoute
+  '/batterie/parcours': typeof BatterieParcoursRoute
   '/jeux/$id': typeof JeuxIdRoute
   '/lecon/$id': typeof LeconIdRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/basse/lecon/$id': typeof BasseLeconIdRoute
+  '/batterie/lecon/$id': typeof BatterieLeconIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/basse'
+    | '/batterie'
     | '/carnet'
     | '/defi'
     | '/diagnostic'
     | '/examens'
+    | '/galerie'
     | '/jeux'
+    | '/login'
     | '/manche'
+    | '/memos'
     | '/oreille'
+    | '/parametres'
     | '/parcours'
+    | '/profil'
     | '/progression'
     | '/studio'
+    | '/basse/examen'
+    | '/basse/parcours'
+    | '/batterie/examen'
+    | '/batterie/parcours'
     | '/jeux/$id'
     | '/lecon/$id'
+    | '/api/auth/$'
+    | '/basse/lecon/$id'
+    | '/batterie/lecon/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/basse'
+    | '/batterie'
     | '/carnet'
     | '/defi'
     | '/diagnostic'
     | '/examens'
+    | '/galerie'
     | '/jeux'
+    | '/login'
     | '/manche'
+    | '/memos'
     | '/oreille'
+    | '/parametres'
     | '/parcours'
+    | '/profil'
     | '/progression'
     | '/studio'
+    | '/basse/examen'
+    | '/basse/parcours'
+    | '/batterie/examen'
+    | '/batterie/parcours'
     | '/jeux/$id'
     | '/lecon/$id'
+    | '/api/auth/$'
+    | '/basse/lecon/$id'
+    | '/batterie/lecon/$id'
   id:
     | '__root__'
     | '/'
+    | '/basse'
+    | '/batterie'
     | '/carnet'
     | '/defi'
     | '/diagnostic'
     | '/examens'
+    | '/galerie'
     | '/jeux'
+    | '/login'
     | '/manche'
+    | '/memos'
     | '/oreille'
+    | '/parametres'
     | '/parcours'
+    | '/profil'
     | '/progression'
     | '/studio'
+    | '/basse/examen'
+    | '/basse/parcours'
+    | '/batterie/examen'
+    | '/batterie/parcours'
     | '/jeux/$id'
     | '/lecon/$id'
+    | '/api/auth/$'
+    | '/basse/lecon/$id'
+    | '/batterie/lecon/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BasseRoute: typeof BasseRouteWithChildren
+  BatterieRoute: typeof BatterieRouteWithChildren
   CarnetRoute: typeof CarnetRoute
   DefiRoute: typeof DefiRoute
   DiagnosticRoute: typeof DiagnosticRoute
   ExamensRoute: typeof ExamensRoute
+  GalerieRoute: typeof GalerieRoute
   JeuxRoute: typeof JeuxRouteWithChildren
+  LoginRoute: typeof LoginRoute
   MancheRoute: typeof MancheRoute
+  MemosRoute: typeof MemosRoute
   OreilleRoute: typeof OreilleRoute
+  ParametresRoute: typeof ParametresRoute
   ParcoursRoute: typeof ParcoursRoute
+  ProfilRoute: typeof ProfilRoute
   ProgressionRoute: typeof ProgressionRoute
   StudioRoute: typeof StudioRoute
   LeconIdRoute: typeof LeconIdRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,6 +381,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/basse': {
+      id: '/basse'
+      path: '/basse'
+      fullPath: '/basse'
+      preLoaderRoute: typeof BasseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/batterie': {
+      id: '/batterie'
+      path: '/batterie'
+      fullPath: '/batterie'
+      preLoaderRoute: typeof BatterieRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/carnet': {
@@ -235,11 +425,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamensRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/galerie': {
+      id: '/galerie'
+      path: '/galerie'
+      fullPath: '/galerie'
+      preLoaderRoute: typeof GalerieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/jeux': {
       id: '/jeux'
       path: '/jeux'
       fullPath: '/jeux'
       preLoaderRoute: typeof JeuxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manche': {
@@ -249,6 +453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MancheRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/memos': {
+      id: '/memos'
+      path: '/memos'
+      fullPath: '/memos'
+      preLoaderRoute: typeof MemosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oreille': {
       id: '/oreille'
       path: '/oreille'
@@ -256,11 +467,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OreilleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parametres': {
+      id: '/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof ParametresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/parcours': {
       id: '/parcours'
       path: '/parcours'
       fullPath: '/parcours'
       preLoaderRoute: typeof ParcoursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profil': {
+      id: '/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof ProfilRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/progression': {
@@ -277,6 +502,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/basse/examen': {
+      id: '/basse/examen'
+      path: '/examen'
+      fullPath: '/basse/examen'
+      preLoaderRoute: typeof BasseExamenRouteImport
+      parentRoute: typeof BasseRoute
+    }
+    '/basse/parcours': {
+      id: '/basse/parcours'
+      path: '/parcours'
+      fullPath: '/basse/parcours'
+      preLoaderRoute: typeof BasseParcoursRouteImport
+      parentRoute: typeof BasseRoute
+    }
+    '/batterie/examen': {
+      id: '/batterie/examen'
+      path: '/examen'
+      fullPath: '/batterie/examen'
+      preLoaderRoute: typeof BatterieExamenRouteImport
+      parentRoute: typeof BatterieRoute
+    }
+    '/batterie/parcours': {
+      id: '/batterie/parcours'
+      path: '/parcours'
+      fullPath: '/batterie/parcours'
+      preLoaderRoute: typeof BatterieParcoursRouteImport
+      parentRoute: typeof BatterieRoute
+    }
     '/jeux/$id': {
       id: '/jeux/$id'
       path: '/$id'
@@ -291,8 +544,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeconIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/basse/lecon/$id': {
+      id: '/basse/lecon/$id'
+      path: '/lecon/$id'
+      fullPath: '/basse/lecon/$id'
+      preLoaderRoute: typeof BasseLeconIdRouteImport
+      parentRoute: typeof BasseRoute
+    }
+    '/batterie/lecon/$id': {
+      id: '/batterie/lecon/$id'
+      path: '/lecon/$id'
+      fullPath: '/batterie/lecon/$id'
+      preLoaderRoute: typeof BatterieLeconIdRouteImport
+      parentRoute: typeof BatterieRoute
+    }
   }
 }
+
+interface BasseRouteChildren {
+  BasseExamenRoute: typeof BasseExamenRoute
+  BasseParcoursRoute: typeof BasseParcoursRoute
+  BasseLeconIdRoute: typeof BasseLeconIdRoute
+}
+
+const BasseRouteChildren: BasseRouteChildren = {
+  BasseExamenRoute: BasseExamenRoute,
+  BasseParcoursRoute: BasseParcoursRoute,
+  BasseLeconIdRoute: BasseLeconIdRoute,
+}
+
+const BasseRouteWithChildren = BasseRoute._addFileChildren(BasseRouteChildren)
+
+interface BatterieRouteChildren {
+  BatterieExamenRoute: typeof BatterieExamenRoute
+  BatterieParcoursRoute: typeof BatterieParcoursRoute
+  BatterieLeconIdRoute: typeof BatterieLeconIdRoute
+}
+
+const BatterieRouteChildren: BatterieRouteChildren = {
+  BatterieExamenRoute: BatterieExamenRoute,
+  BatterieParcoursRoute: BatterieParcoursRoute,
+  BatterieLeconIdRoute: BatterieLeconIdRoute,
+}
+
+const BatterieRouteWithChildren = BatterieRoute._addFileChildren(
+  BatterieRouteChildren,
+)
 
 interface JeuxRouteChildren {
   JeuxIdRoute: typeof JeuxIdRoute
@@ -306,17 +610,25 @@ const JeuxRouteWithChildren = JeuxRoute._addFileChildren(JeuxRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BasseRoute: BasseRouteWithChildren,
+  BatterieRoute: BatterieRouteWithChildren,
   CarnetRoute: CarnetRoute,
   DefiRoute: DefiRoute,
   DiagnosticRoute: DiagnosticRoute,
   ExamensRoute: ExamensRoute,
+  GalerieRoute: GalerieRoute,
   JeuxRoute: JeuxRouteWithChildren,
+  LoginRoute: LoginRoute,
   MancheRoute: MancheRoute,
+  MemosRoute: MemosRoute,
   OreilleRoute: OreilleRoute,
+  ParametresRoute: ParametresRoute,
   ParcoursRoute: ParcoursRoute,
+  ProfilRoute: ProfilRoute,
   ProgressionRoute: ProgressionRoute,
   StudioRoute: StudioRoute,
   LeconIdRoute: LeconIdRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
