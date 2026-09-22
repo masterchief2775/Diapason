@@ -31,7 +31,8 @@ function DefiPage() {
   const lang = useLang();
   const challenge = dailyChallenge();
   const recordChallenge = useProgress((s) => s.recordChallenge);
-  const done = useProgress((s) => s.challenges[challenge.seed] ?? 0);
+  // `!= null` et non `> 0` : un score de 0 % reste une tentative.
+  const done = useProgress((s) => s.challenges[challenge.seed]);
   const [phase, setPhase] = useState<"intro" | "quiz" | "recap">("intro");
   const [pct, setPct] = useState(0);
   const [label, detail] = challengeText(lang, challenge.kind);
@@ -59,13 +60,13 @@ function DefiPage() {
           {label}
         </Title>
         <p className="mb-2 text-sm text-muted">{detail}</p>
-        {done > 0 && (
+        {done != null && (
           <p className="mb-6 font-mono text-xs text-sage">
             {lang === "en" ? `Already tried today: ${done} %` : `Déjà tenté aujourd'hui : ${done} %`}
           </p>
         )}
         <div className="flex gap-2">
-          <Button onClick={() => setPhase("quiz")}>{done > 0 ? t("ui.retry") : lang === "en" ? "Take the challenge" : "Relever le défi"}</Button>
+          <Button onClick={() => setPhase("quiz")}>{done != null ? t("ui.retry") : lang === "en" ? "Take the challenge" : "Relever le défi"}</Button>
           <Button variant="outline" onClick={() => nav({ to: "/" })}>{lang === "en" ? "Home" : "Accueil"}</Button>
         </div>
       </Page>
@@ -80,7 +81,7 @@ function DefiPage() {
           questions={questions}
           onDone={(p) => {
             setPct(p);
-            recordChallenge(challenge.seed, Math.round(p / 10));
+            recordChallenge(challenge.seed, p);
             setPhase("recap");
           }}
         />

@@ -15,6 +15,9 @@ export default tseslint.config(
       ".nitro/**",
       "node_modules/**",
       "src/routeTree.gen.ts",
+      // Generated standalone copies, not part of the app (untracked, unreferenced).
+      "diapason-app.jsx",
+      "attachments/**",
     ],
   },
   js.configs.recommended,

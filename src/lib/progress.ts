@@ -5,7 +5,7 @@ import type { Lang, Naming } from "./i18n";
 import type { ThemeId } from "./theme";
 import { LESSON_ORDER } from "./curriculum";
 import { pushToast } from "./feed";
-import { streakBonus } from "./gamification";
+import { localDayISO, localYesterdayISO, streakBonus } from "./gamification";
 
 export type SavedPiece = {
   id: string;
@@ -39,7 +39,7 @@ type ProgressState = {
   hydrateStreak: () => void;
   completeLesson: (id: string, percent: number) => number;
   addXp: (n: number, toastKey?: string) => void;
-  savePiece: (piece: Omit<SavedPiece, "id" | "createdAt">) => void;
+  savePiece: (piece: Omit<SavedPiece, "id" | "createdAt">) => boolean;
   deletePiece: (id: string) => void;
   setOnboarded: () => void;
   recordChallenge: (seed: string, pts: number) => void;
@@ -91,13 +91,11 @@ export function toCloudProgress(s: ProgressState): CloudProgress {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return localDayISO();
 }
 
 function yesterdayISO() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return localYesterdayISO();
 }
 
 export const useProgress = create<ProgressState>()(
@@ -126,9 +124,9 @@ export const useProgress = create<ProgressState>()(
         const { lastVisit, streak } = get();
         if (lastVisit === t) return;
         if (lastVisit === yesterdayISO()) {
-          set({ streak: streak + 1, lastVisit: t });
+          set({ streak: streak + 1, lastVisit: t, updatedAt: Date.now() });
         } else {
-          set({ streak: 1, lastVisit: t });
+          set({ streak: 1, lastVisit: t, updatedAt: Date.now() });
         }
       },
       completeLesson: (id, percent) => {
@@ -136,10 +134,13 @@ export const useProgress = create<ProgressState>()(
         const prev = scores[id] ?? 0;
         const nextScores = { ...scores, [id]: Math.max(prev, percent) };
         const already = completed.includes(id);
+        const attempted = scores[id] !== undefined;
         const pass = percent >= 60;
         const bonus = percent === 100 ? 20 : 0;
         const serie = pass && !already ? streakBonus(streak) : 0;
-        const gained = already ? Math.max(0, Math.round((percent - prev) / 10)) : pass ? 40 + bonus + serie : 10;
+        // Anti-farming : un échec ne paie les +10 XP de consolation qu'à la
+        // première tentative ; ensuite il faut valider (ou améliorer un acquis).
+        const gained = already ? Math.max(0, Math.round((percent - prev) / 10)) : pass ? 40 + bonus + serie : attempted ? 0 : 10;
         set({
           scores: nextScores,
           completed: already || !pass ? completed : [...completed, id],
@@ -147,7 +148,7 @@ export const useProgress = create<ProgressState>()(
           updatedAt: Date.now(),
         });
         get().logActivity(gained);
-        if (gained > 0) pushToast("xp", "feed.lessonDone", { sub: `+${gained} XP` });
+        if (gained > 0 && !already) pushToast("xp", "feed.lessonDone", { sub: `+${gained} XP` });
         return gained;
       },
       addXp: (n, toastKey) => {
@@ -161,29 +162,49 @@ export const useProgress = create<ProgressState>()(
         set({ activity: { ...get().activity, [t]: (get().activity[t] ?? 0) + n } });
       },
       savePiece: (piece) => {
+        const sig = (p: SavedPiece) =>
+          [p.title, p.keyRoot, p.mode, JSON.stringify(p.progression), JSON.stringify(p.melody), p.genre ?? ""].join("|");
+        // Anti-doublon : réenregistrer la pièce la plus récente à l'identique
+        // ne crée ni entrée ni XP (clic double, spam).
+        const [last] = get().pieces;
+        const newSig = sig({ ...piece, id: "", createdAt: 0 });
+        if (last != null && sig(last) === newSig) return false;
         const item: SavedPiece = {
           ...piece,
           id: crypto.randomUUID(),
           createdAt: Date.now(),
         };
-        set({ pieces: [item, ...get().pieces], xp: get().xp + 15, updatedAt: Date.now() });
-        pushToast("xp", "feed.saved", { sub: "+15 XP" });
+        // Anti-farming : +15 XP seulement si la pièce est inédite dans les
+        // 10 dernières (alterner deux pièces ne paie plus à l'infini).
+        const fresh = !get().pieces.slice(0, 10).some((p) => sig(p) === newSig);
+        set({ pieces: [item, ...get().pieces], xp: get().xp + (fresh ? 15 : 0), updatedAt: Date.now() });
+        if (fresh) {
+          get().logActivity(15);
+          pushToast("xp", "feed.saved", { sub: "+15 XP" });
+        }
+        return true;
       },
       deletePiece: (id) => set({ pieces: get().pieces.filter((p) => p.id !== id), updatedAt: Date.now() }),
       setOnboarded: () => set({ onboarded: true }),
-      recordChallenge: (seed, pts) => {
+      recordChallenge: (seed, pct) => {
+        // `pct` est un vrai pourcentage (affiché tel quel) ; seul le gain
+        // d'XP est compressé (÷10) et seule l'amélioration paie.
+        const prev = get().challenges[seed] ?? 0;
+        const gain = Math.max(0, Math.round((pct - prev) / 10));
         set({
-          challenges: { ...get().challenges, [seed]: Math.max(get().challenges[seed] ?? 0, pts) },
-          xp: get().xp + pts,
+          challenges: { ...get().challenges, [seed]: Math.max(prev, pct) },
+          xp: get().xp + gain,
           updatedAt: Date.now(),
         });
-        get().logActivity(pts);
-        if (pts > 0) pushToast("xp", "feed.challenge", { sub: `+${pts} XP` });
+        get().logActivity(gain);
+        if (gain > 0) pushToast("xp", "feed.challenge", { sub: `+${gain} XP` });
       },
       recordBest: (gameId, score) => {
         const prev = get().bestScores[gameId] ?? 0;
         const improved = score > prev;
-        set({ bestScores: { ...get().bestScores, [gameId]: Math.max(prev, score) } });
+        // updatedAt bumpé même sans amélioration : le record (et l'activité
+        // qu'il implique) doit survivre au last-write-wins, pas être écrasé.
+        set({ bestScores: { ...get().bestScores, [gameId]: Math.max(prev, score) }, updatedAt: Date.now() });
         if (improved && score > 0) pushToast("record", "feed.record", { sub: `${score}` });
         return improved;
       },
@@ -211,25 +232,26 @@ export const useProgress = create<ProgressState>()(
           scores: { ...get().scores, [id]: Math.max(get().scores[id] ?? 0, percent) },
           updatedAt: Date.now(),
         }),
-      setLevel: (level) => set({ level }),
+      setLevel: (level) => set({ level, updatedAt: Date.now() }),
       hydrateFromCloud: (data) =>
         set({
-          completed: data.completed,
-          scores: data.scores,
-          xp: data.xp,
-          streak: data.streak,
-          lastVisit: data.lastVisit,
-          pieces: data.pieces,
-          challenges: data.challenges,
-          bestScores: data.bestScores,
-          activity: data.activity,
-          level: data.level,
-          updatedAt: data.updatedAt,
+          completed: Array.isArray(data.completed) ? data.completed.filter((x) => typeof x === "string") : [],
+          scores: data.scores && typeof data.scores === "object" ? data.scores : {},
+          xp: typeof data.xp === "number" ? data.xp : 0,
+          streak: typeof data.streak === "number" ? data.streak : 0,
+          lastVisit: typeof data.lastVisit === "string" ? data.lastVisit : null,
+          pieces: Array.isArray(data.pieces) ? data.pieces : [],
+          challenges: data.challenges && typeof data.challenges === "object" ? data.challenges : {},
+          bestScores: data.bestScores && typeof data.bestScores === "object" ? data.bestScores : {},
+          activity: data.activity && typeof data.activity === "object" ? data.activity : {},
+          level: typeof data.level === "string" ? data.level : null,
+          updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : 0,
         }),
       setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
       isUnlocked: (id) => {
         const idx = LESSON_ORDER.indexOf(id);
-        if (idx <= 0) return true;
+        if (idx === 0) return true;
+        if (idx < 0) return false;
         const { completed } = get();
         return completed.includes(LESSON_ORDER[idx - 1]);
       },
@@ -241,7 +263,35 @@ export const useProgress = create<ProgressState>()(
     }),
     {
       name: "diapason-progress-v1",
-      storage: createJSONStorage(() => localStorage),
+      version: 1,
+      // Stockage défensif : quota dépassé ou JSON corrompu → on ignore au lieu
+      // de jeter (une entrée corrompue repart de zéro plutôt que de crasher).
+      storage: createJSONStorage(() => ({
+        getItem: (key: string) => {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw == null) return null;
+            JSON.parse(raw);
+            return raw;
+          } catch {
+            return null;
+          }
+        },
+        setItem: (key: string, value: string) => {
+          try {
+            localStorage.setItem(key, value);
+          } catch {
+            /* quota plein : la session continue en mémoire */
+          }
+        },
+        removeItem: (key: string) => {
+          try {
+            localStorage.removeItem(key);
+          } catch {
+            /* noop */
+          }
+        },
+      })),
       skipHydration: true,
     },
   ),

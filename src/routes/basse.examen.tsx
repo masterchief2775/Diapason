@@ -3,10 +3,11 @@ import { useState } from "react";
 import { BackLink, Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock, Recap } from "@/features/quiz-block";
-import { BASSE_EXAM } from "@/lib/curriculum-basse";
+import { BASSE_EXAM, BASSE_ORDER } from "@/lib/curriculum-basse";
 import { instQuestions } from "@/lib/instrument-curriculum";
 import { useProgress } from "@/lib/progress";
 import { useLang, useT } from "@/lib/i18n";
+import { Lock } from "lucide-react";
 
 export const Route = createFileRoute("/basse/examen")({ component: BasseExamen });
 
@@ -17,9 +18,24 @@ function BasseExamen() {
   const addXp = useProgress((s) => s.addXp);
   const setScore = useProgress((s) => s.setScore);
   const scores = useProgress((s) => s.scores);
+  const completed = useProgress((s) => s.completed);
   const [active, setActive] = useState(false);
   const [pct, setPct] = useState(0);
   const [finished, setFinished] = useState(false);
+
+  // Même verrou que le bouton du parcours : accès direct par URL interdit
+  // tant que les 4 leçons ne sont pas terminées.
+  if (!BASSE_ORDER.every((id) => completed.includes(id))) {
+    return (
+      <Page>
+        <BackLink onClick={() => nav({ to: "/basse/parcours" })} label={t("basse.pathK")} />
+        <div className="flex items-center gap-3 text-muted">
+          <Lock size={18} />
+          <p>{t("lesson.locked")} « {lang === "en" ? BASSE_EXAM.titleEn : BASSE_EXAM.titleFr} ».</p>
+        </div>
+      </Page>
+    );
+  }
 
   if (active && !finished) {
     return (
@@ -30,9 +46,10 @@ function BasseExamen() {
         <QuizBlock
           questions={instQuestions(lang, BASSE_EXAM.questions)}
           onDone={(p) => {
+            const prev = scores[BASSE_EXAM.id] ?? 0;
             setPct(p);
             setScore(BASSE_EXAM.id, p);
-            if (p >= 60) addXp(50, "feed.exam");
+            if (p >= 60 && prev < 60) addXp(50, "feed.exam");
             setFinished(true);
           }}
         />
@@ -52,6 +69,7 @@ function BasseExamen() {
             setActive(true);
           }}
           onBack={() => nav({ to: "/basse/parcours" })}
+          fanfareTimbre="basse"
           perfect={lang === "en" ? "Bassist level validated (+50 XP). The “Confirmed bassist” badge is yours." : "Niveau de bassiste validé (+50 XP). Le badge « Bassiste confirmé » est à toi."}
           ok={lang === "en" ? "Below 60%: replay the 4 lessons, then come back." : "Sous les 60 % : rejoue les 4 leçons, puis reviens."}
         />

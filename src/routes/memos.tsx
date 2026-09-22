@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
-import { resumeAudio, playChordNow } from "@/lib/audio";
+import { freqForOffset, playTone, resumeAudio } from "@/lib/audio";
 import {
   CHORD_QUALITIES,
   INTERVALS,
@@ -35,11 +35,21 @@ function MemosPage() {
 
   const hearScale = async () => {
     const ctx = await resumeAudio();
-    playChordNow(pc, 0, majorSteps.slice(0, 4));
-    for (const d of [0, 3, 4]) {
+    // La gamme d'abord, note à note (pas en accord), puis I–IV–V espacés :
+    // tout jouer d'un coup donnait un cluster dissonant.
+    const now = ctx.currentTime + 0.05;
+    majorSteps.forEach((s, i) => {
+      playTone(ctx, freqForOffset(pc, s), now + i * 0.34, 0.32, 0.4);
+    });
+    const startChords = now + majorSteps.length * 0.34 + 0.25;
+    for (let k = 0; k < 3; k++) {
+      const d = [0, 3, 4][k];
       const ch = degrees[d];
-      playChordNow(pc, ch.rootOffset, ch.quality.formula);
-      await new Promise((r) => setTimeout(r, 700));
+      const at = startChords + k * 0.9;
+      ch.quality.formula.forEach((iv) => {
+        playTone(ctx, freqForOffset(pc, ch.rootOffset + iv), at, 0.8, 0.28);
+      });
+      await new Promise((r) => setTimeout(r, 900));
     }
   };
 

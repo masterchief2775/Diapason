@@ -3,10 +3,11 @@ import { useState } from "react";
 import { BackLink, Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock, Recap } from "@/features/quiz-block";
-import { BAT_EXAM } from "@/lib/curriculum-batterie";
+import { BAT_EXAM, BAT_ORDER } from "@/lib/curriculum-batterie";
 import { instQuestions } from "@/lib/instrument-curriculum";
 import { useProgress } from "@/lib/progress";
 import { useLang, useT } from "@/lib/i18n";
+import { Lock } from "lucide-react";
 
 export const Route = createFileRoute("/batterie/examen")({ component: BatExamen });
 
@@ -17,9 +18,24 @@ function BatExamen() {
   const addXp = useProgress((s) => s.addXp);
   const setScore = useProgress((s) => s.setScore);
   const scores = useProgress((s) => s.scores);
+  const completed = useProgress((s) => s.completed);
   const [active, setActive] = useState(false);
   const [pct, setPct] = useState(0);
   const [finished, setFinished] = useState(false);
+
+  // Même verrou que le bouton du parcours : accès direct par URL interdit
+  // tant que les 4 leçons ne sont pas terminées.
+  if (!BAT_ORDER.every((id) => completed.includes(id))) {
+    return (
+      <Page>
+        <BackLink onClick={() => nav({ to: "/batterie/parcours" })} label={t("bat.pathK")} />
+        <div className="flex items-center gap-3 text-muted">
+          <Lock size={18} />
+          <p>{t("lesson.locked")} « {lang === "en" ? BAT_EXAM.titleEn : BAT_EXAM.titleFr} ».</p>
+        </div>
+      </Page>
+    );
+  }
 
   if (active && !finished) {
     return (
@@ -30,9 +46,10 @@ function BatExamen() {
         <QuizBlock
           questions={instQuestions(lang, BAT_EXAM.questions)}
           onDone={(p) => {
+            const prev = scores[BAT_EXAM.id] ?? 0;
             setPct(p);
             setScore(BAT_EXAM.id, p);
-            if (p >= 60) addXp(50, "feed.exam");
+            if (p >= 60 && prev < 60) addXp(50, "feed.exam");
             setFinished(true);
           }}
         />

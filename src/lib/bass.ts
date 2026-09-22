@@ -1,4 +1,4 @@
-import { getAudioContext, playTone, resumeAudio } from "./audio";
+import { playTone, resumeAudio } from "./audio";
 
 /** 4 cordes Mi – La – Ré – Sol (corde 4 → 1), une octave sous la guitare. */
 export const BASS_PC = [4, 9, 2, 7];
@@ -18,13 +18,13 @@ export function patternFreq(offset: number, baseMidi = 36): number {
 
 export async function playBassString(s: number, f = 0, duration = 1.2) {
   const ctx = await resumeAudio();
-  playTone(ctx, bassFreq(s, f), ctx.currentTime, duration, 0.5);
+  playTone(ctx, bassFreq(s, f), ctx.currentTime, duration, 0.5, "basse");
 }
 
 export async function playBassPattern(offsets: readonly number[], baseMidi = 36) {
   const ctx = await resumeAudio();
   offsets.forEach((o, i) => {
-    playTone(ctx, patternFreq(o, baseMidi), ctx.currentTime + i * 0.5, 0.45, 0.5);
+    playTone(ctx, patternFreq(o, baseMidi), ctx.currentTime + i * 0.5, 0.45, 0.5, "basse");
   });
 }
 
@@ -32,13 +32,13 @@ export async function playBassPattern(offsets: readonly number[], baseMidi = 36)
 export async function playBassTuning() {
   const ctx = await resumeAudio();
   BASS_PC.forEach((_, s) => {
-    playTone(ctx, bassFreq(s, 0), ctx.currentTime + s * 0.45, 1.0, 0.5);
+    playTone(ctx, bassFreq(s, 0), ctx.currentTime + s * 0.45, 1.0, 0.5, "basse");
   });
 }
 
-export function playBassFret(s: number, f: number) {
-  const ctx = getAudioContext();
-  playTone(ctx, bassFreq(s, f), ctx.currentTime, 0.5);
+export async function playBassFret(s: number, f: number) {
+  const ctx = await resumeAudio();
+  playTone(ctx, bassFreq(s, f), ctx.currentTime, 0.5, 0.4, "basse");
 }
 
 export type BassPattern = {

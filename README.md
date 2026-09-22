@@ -130,19 +130,34 @@ npm run format     # prettier
 
 ```
 src/
-  routes/          # index, parcours, lecon.$id, manche, oreille, jeux(.​$id),
-                   # studio, carnet, defi, diagnostic, examens, progression
-  features/        # lesson-view (tous les exercices + studio), quiz-block, page
-  components/      # fretboard (manche), shell (nav), ui
+  routes/          # index, parcours, lecon.$id, manche, oreille, jeux(.$id),
+                   # studio, carnet, defi, diagnostic, examens, progression,
+                   # profil, memos, galerie, login, parametres,
+                   # basse(.parcours/.lecon.$id/.examen),
+                   # batterie(.parcours/.lecon.$id/.examen)
+  features/        # lesson-view (exercices guitare + studio),
+                   # instrument-lesson + instrument-parcours (basse/batterie),
+                   # quiz-block, page
+  components/      # fretboard (manche 6 cordes), bass-neck (4 cordes),
+                   # drum-pads, groove-card, badges (médaillons), shell, ui
   lib/
     music.ts       # théorie : notes, gammes, accords, diatonique, genres,
                    # voicings, bibliothèque, suggestions, tablature, export MIDI
     curriculum.ts  # 19 leçons, quiz, diagnostic, examens
+    curriculum-basse.ts / curriculum-batterie.ts  # parcours basse/batterie FR/EN
+    instrument-curriculum.ts  # types + déblocage séquentiel partagés
+    bass.ts        # accordage, fréquences, patterns basse
+    grooves.ts     # pads, rythmes 16 pas, lecture + démo de fill
     progress.ts    # store zustand persisté : XP, scores, records, pièces, activité
-    gamification.ts# badges, titres, défi du jour (seed), file de révision
-    i18n.ts          # FR/EN (159 clés), notations Do–Si / C–B, hooks useT/useNN
-    audio.ts       # Web Audio : moteur guitare/piano, reverb, accords, intervalles, clics
+    gamification.ts# badges, titres, niveaux, défi du jour (seed), file de révision
+    i18n.ts          # FR/EN (353 clés), notations Do–Si / C–B, hooks useT/useNN
+    audio.ts       # Web Audio : guitare/piano, batterie modélisée, reverb,
+                   # accords, intervalles, clics
     synth.ts       # synthèse pure (Karplus-Strong + piano) — testable sans navigateur
+    feed.ts        # toasts de récompense
+    confetti.ts    # confettis (canvas)
+    sync.ts        # sync cloud last-write-wins + push différé
+    theme.ts       # 7 thèmes (braise, papier, minuit, forêt, miku, teto, daltonien)
     pitch.ts       # détection de hauteur (autocorrélation) — testable sans navigateur
     mic.ts         # hook micro temps réel (accordeur, joue-ce-que-tu-entends)
 ```

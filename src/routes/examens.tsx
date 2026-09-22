@@ -30,9 +30,11 @@ function ExamensPage() {
         <QuizBlock
           questions={examQuestions(lang, active.id)}
           onDone={(p) => {
+            const prev = scores[active.id] ?? 0;
             setPct(p);
             setScore(active.id, p);
-            if (p >= 60) addXp(50, "feed.exam");
+            // +50 XP à la première validation uniquement (anti-farming).
+            if (p >= 60 && prev < 60) addXp(50, "feed.exam");
             setFinished(true);
           }}
         />

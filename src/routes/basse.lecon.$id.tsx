@@ -59,6 +59,7 @@ function BasseLecon() {
       nextTitle={nextLesson ? (lang === "en" ? nextLesson.titleEn : nextLesson.titleFr) : null}
       onExit={() => nav({ to: "/basse/parcours" })}
       onNext={nextId ? () => nav({ to: "/basse/lecon/$id", params: { id: nextId } }) : null}
+      fanfareTimbre="basse"
     />
   );
 }

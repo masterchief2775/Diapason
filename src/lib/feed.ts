@@ -22,8 +22,10 @@ type FeedState = {
 /** Mini-store NON persisté : les récompenses du moment (XP, badges, records). */
 export const useFeed = create<FeedState>()((set) => ({
   toasts: [],
+  // File de 5 max : une rafale (XP + badge + niveau) ne doit jamais perdre
+  // une notification, et l'affichage reste limité aux plus récentes.
   push: (kind, key, opts) =>
-    set((s) => ({ toasts: [...s.toasts.slice(-2), { id: nextId++, kind, key, ...opts }] })),
+    set((s) => ({ toasts: [...s.toasts.slice(-4), { id: nextId++, kind, key, ...opts }] })),
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));
 

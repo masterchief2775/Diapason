@@ -4,14 +4,26 @@ import type { CloudProgress } from "@/lib/progress";
 
 type ProgressRow = { data: CloudProgress };
 
+function isRecord(v: unknown): v is Record<string, number> {
+  if (typeof v !== "object" || v === null) return false;
+  return Object.values(v as Record<string, unknown>).every((x) => typeof x === "number");
+}
+
 function isCloudProgress(v: unknown): v is CloudProgress {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
   return (
     Array.isArray(o.completed) &&
-    typeof o.scores === "object" &&
+    o.completed.every((x) => typeof x === "string") &&
+    isRecord(o.scores) &&
     typeof o.xp === "number" &&
+    typeof o.streak === "number" &&
+    (o.lastVisit === null || typeof o.lastVisit === "string") &&
     Array.isArray(o.pieces) &&
+    isRecord(o.challenges) &&
+    isRecord(o.bestScores) &&
+    isRecord(o.activity) &&
+    (o.level === null || typeof o.level === "string") &&
     typeof o.updatedAt === "number"
   );
 }

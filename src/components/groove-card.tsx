@@ -19,6 +19,10 @@ export function GrooveCard({ groove, bpm }: { groove: Groove; bpm: number }) {
 
   const play = async () => {
     if (playing) return;
+    // Réinitialise la file : une relecture enchaînée ne doit pas rejouer
+    // les surbrillances de la précédente.
+    timers.current.forEach((tm) => window.clearTimeout(tm));
+    timers.current = [];
     const { stepDur } = await playGroove(groove, bpm);
     for (let bar = 0; bar < GROOVE_BARS; bar++) {
       for (let s = 0; s < 16; s++) {

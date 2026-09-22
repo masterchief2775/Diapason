@@ -7,7 +7,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { Page } from "@/features/page";
 import { LESSONS, LESSON_ORDER, PHASES, lessonById, lessonText } from "@/lib/curriculum";
-import { DAILY_GOAL, dailyChallenge, challengeText, reviewQueue } from "@/lib/gamification";
+import { DAILY_GOAL, dailyChallenge, challengeText, localDayISO, reviewQueue } from "@/lib/gamification";
 import { useProgress } from "@/lib/progress";
 import { useLang, useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ function Home() {
   const defiDone = useProgress((s) => s.challenges[defi.seed] ?? 0);
   const [defiLabel] = challengeText(lang, defi.kind);
   const queue = reviewQueue({ order: LESSON_ORDER, completed, scores, isUnlocked });
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = localDayISO();
   const todayXp = useProgress((s) => s.activity[todayKey] ?? 0);
   const phaseOfNext = next ? PHASES[(next?.phase ?? 1) - 1] : undefined;
 

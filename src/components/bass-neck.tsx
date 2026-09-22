@@ -23,7 +23,7 @@ export function BassNeck({
   const handle = async (s: number, f: number) => {
     if (hear) {
       const ctx = await resumeAudio();
-      playTone(ctx, bassFreq(s, f), ctx.currentTime, 0.45, 0.4);
+      playTone(ctx, bassFreq(s, f), ctx.currentTime, 0.45, 0.4, "basse");
     }
     onCellClick?.(s, f);
   };

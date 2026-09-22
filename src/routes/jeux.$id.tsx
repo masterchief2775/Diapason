@@ -7,7 +7,7 @@ import { Recap } from "@/features/quiz-block";
 import { freqForOffset, playTone, resumeAudio } from "@/lib/audio";
 import { CHORD_QUALITIES, INTERVALS, SCALES, TUNING, degreeChord, noteAt } from "@/lib/music";
 import { useProgress } from "@/lib/progress";
-import { useLang, useNN, useT } from "@/lib/i18n";
+import { useLang, useNN } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/jeux/$id")({
 
 function GameRoute() {
   const { id } = Route.useParams();
+  const nav = useNavigate();
   const lang = useLang();
   if (id === "intervalles") return <IntervalRace />;
   if (id === "accorde") return <ChordRace />;
@@ -26,6 +27,7 @@ function GameRoute() {
   if (id === "compo60") return <Compo60 />;
   return (
     <Page>
+      <BackLink onClick={() => nav({ to: "/jeux" })} label={lang === "en" ? "Games" : "Jeux"} />
       <p>{lang === "en" ? "Game not found." : "Jeu introuvable."}</p>
     </Page>
   );
@@ -48,6 +50,9 @@ function useCountdown(total: number, running: boolean, onEnd: () => void) {
   return { left, reset: () => setLeft(total) };
 }
 
+/** Gamme de référence du jeu « Note manquante » (constante : jamais recalculée). */
+const MAJOR_SCALE = SCALES.find((s) => s.id === "majeure")!;
+
 /** Bandeau d'urgence quand le chrono tombe sous 10 s. */
 function Urgency({ left, lang }: { left: number; lang: Lang }) {
   if (left > 10) return null;
@@ -64,6 +69,9 @@ function IntervalRace() {
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [best, setBest] = useState(false);
+  // Anti-brute-force : une case fausse verrouille 350 ms (sinon spammer les
+  // 12 cases garantit le max sans écouter).
+  const [lockUntil, setLockUntil] = useState(0);
   const addXp = useProgress((s) => s.addXp);
   const recordBest = useProgress((s) => s.recordBest);
   const prevBest = useProgress((s) => s.bestScores["intervalles"] ?? 0);
@@ -74,10 +82,13 @@ function IntervalRace() {
     setDone(true);
   });
 
+  // Single-flight (StrictMode dev rejoue les effets) + anti-farming :
+  // l'XP ne paie qu'en cas d'amélioration du record.
+  const awarded = useRef(false);
   useEffect(() => {
-    if (!done) return;
-    addXp(score, "feed.game");
-    recordBest("intervalles", score);
+    if (!done || awarded.current) return;
+    awarded.current = true;
+    if (recordBest("intervalles", score) && score > 0) addXp(score, "feed.game");
     setBest(score > 0 && score >= prevBest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
@@ -95,10 +106,12 @@ function IntervalRace() {
           <Fretboard
             highlight={{ rootIndex: TUNING[0], steps: [] }}
             onCellClick={(s, f) => {
-              if (s !== 0) return;
+              if (s !== 0 || Date.now() < lockUntil) return;
               if (f === q.semis) {
                 setScore((x) => x + 1);
                 setQ(INTERVALS[Math.floor(Math.random() * INTERVALS.length)]);
+              } else {
+                setLockUntil(Date.now() + 350);
               }
             }}
           />
@@ -111,6 +124,7 @@ function IntervalRace() {
             setScore(0);
             setBest(false);
             setDone(false);
+            awarded.current = false;
             reset();
           }}
           onBack={() => nav({ to: "/jeux" })}
@@ -133,6 +147,12 @@ function ChordRace() {
   const [score, setScore] = useState(0);
   const [tries, setTries] = useState(0);
   const [done, setDone] = useState(false);
+  const flashTimer = useRef<number | null>(null);
+
+  // Pas de setState après démontage si on quitte pendant le flash d'erreur.
+  useEffect(() => () => {
+    if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+  }, []);
   const nav = useNavigate();
   const lang = useLang();
   const nn = useNN();
@@ -143,10 +163,11 @@ function ChordRace() {
 
   const { left, reset } = useCountdown(45, !done, () => setDone(true));
 
+  const awarded = useRef(false);
   useEffect(() => {
-    if (!done) return;
-    addXp(score * 2, "feed.game");
-    recordBest("accorde", score);
+    if (!done || awarded.current) return;
+    awarded.current = true;
+    if (recordBest("accorde", score) && score > 0) addXp(score * 2, "feed.game");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
 
@@ -166,6 +187,7 @@ function ChordRace() {
             setScore(0);
             setTries(0);
             setDone(false);
+            awarded.current = false;
             reset();
             next();
           }}
@@ -206,7 +228,7 @@ function ChordRace() {
               next();
             } else {
               setFlash("ko");
-              window.setTimeout(() => {
+              flashTimer.current = window.setTimeout(() => {
                 setPicked([]);
                 setFlash(null);
               }, 450);
@@ -219,7 +241,6 @@ function ChordRace() {
 }
 
 function MissingNote() {
-  const scale = SCALES.find((s) => s.id === "majeure")!;
   const [root, setRoot] = useState(0);
   const [missing, setMissing] = useState(2);
   const [fb, setFb] = useState<"ok" | "ko" | null>(null);
@@ -235,7 +256,8 @@ function MissingNote() {
 
   const deal = () => {
     const r = Math.floor(Math.random() * 12);
-    const miss = scale.steps[1 + Math.floor(Math.random() * (scale.steps.length - 1))];
+    // Toute la gamme peut manquer, tonique incluse (la reconnaître, c'est le B-A BA).
+    const miss = MAJOR_SCALE.steps[Math.floor(Math.random() * MAJOR_SCALE.steps.length)];
     setRoot(r);
     setMissing(miss);
     setFb(null);
@@ -244,11 +266,10 @@ function MissingNote() {
   useEffect(deal, []);
 
   const finish = (finalScore: number) => {
-    addXp(finalScore * 4, "feed.game");
-    recordBest("trou", finalScore);
+    if (recordBest("trou", finalScore) && finalScore > 0) addXp(finalScore * 4, "feed.game");
   };
 
-  const shown = scale.steps.filter((s) => s !== missing);
+  const shown = MAJOR_SCALE.steps.filter((s) => s !== missing);
 
   if (n >= total) {
     return (
@@ -338,6 +359,8 @@ function Dictee() {
   };
 
   useEffect(() => {
+    // Pas de rejeu automatique sur l'écran de résultat (séquence périmée).
+    if (n >= ROUNDS) return;
     const t = window.setTimeout(() => void playSeq(), 400);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -418,8 +441,7 @@ function Dictee() {
           <Button
             onClick={() => {
               if (n + 1 >= ROUNDS) {
-                addXp(score * 2, "feed.game");
-                recordBest("dictee", score);
+                if (recordBest("dictee", score) && score > 0) addXp(score * 2, "feed.game");
               }
               setN((x) => x + 1);
               deal();
@@ -446,14 +468,22 @@ function MinuteGrid() {
   const nav = useNavigate();
   const lang = useLang();
 
+  // Single-flight : les deux effets (timeout / grille complète) + le double
+  // appel StrictMode ne doivent créditer qu'une seule fois, et l'XP ne paie
+  // qu'en cas d'amélioration du record.
+  const awarded = useRef(false);
+  const award = (pts: number) => {
+    if (awarded.current) return;
+    awarded.current = true;
+    setScore(pts);
+    if (recordBest("minute", pts) && pts > 0) addXp(pts, "feed.game");
+    setDone(true);
+  };
+
   useEffect(() => {
     if (done) return;
     if (left <= 0) {
-      const pts = prog.length >= 4 ? 40 + 0 : prog.length * 10;
-      setScore(pts);
-      addXp(pts, "feed.game");
-      recordBest("minute", pts);
-      setDone(true);
+      award(prog.length >= 4 ? 40 + left : prog.length * 10);
       return;
     }
     const t = window.setInterval(() => setLeft((s) => s - 1), 1000);
@@ -463,11 +493,7 @@ function MinuteGrid() {
 
   useEffect(() => {
     if (prog.length >= 4 && !done) {
-      const pts = 40 + left;
-      setScore(pts);
-      addXp(pts, "feed.game");
-      recordBest("minute", pts);
-      setDone(true);
+      award(40 + left);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prog, done]);
@@ -518,6 +544,7 @@ function MinuteGrid() {
               setScore(0);
               setLeft(60);
               setDone(false);
+              awarded.current = false;
             }}
           >
             {lang === "en" ? "Replay" : "Rejouer"}
@@ -545,14 +572,20 @@ function Compo60() {
   const lang = useLang();
   const nn = useNN();
 
+  // Single-flight : le gong et "Terminer" (+ StrictMode) ne paient qu'une fois.
+  const awarded = useRef(false);
+  const award = (pts: number) => {
+    if (awarded.current) return;
+    awarded.current = true;
+    setScore(pts);
+    if (recordBest("compo60", pts) && pts > 0) addXp(pts, "feed.game");
+    setDone(true);
+  };
+
   useEffect(() => {
     if (done) return;
     if (left <= 0) {
-      const pts = prog.length >= 4 ? 40 : prog.length * 10;
-      setScore(pts);
-      addXp(pts, "feed.game");
-      recordBest("compo60", pts);
-      setDone(true);
+      award(prog.length >= 4 ? 40 : prog.length * 10);
       return;
     }
     const t = window.setInterval(() => setLeft((s) => s - 1), 1000);
@@ -562,11 +595,7 @@ function Compo60() {
 
   const finishNow = () => {
     if (done || prog.length < 4) return;
-    const pts = 40 + left;
-    setScore(pts);
-    addXp(pts, "feed.game");
-    recordBest("compo60", pts);
-    setDone(true);
+    award(40 + left);
   };
 
   const play = async () => {
@@ -647,7 +676,8 @@ function Compo60() {
                   keyRoot: key,
                   mode: "majeure",
                   progression: prog,
-                  melody: Array(8).fill(null),
+                  // Autant de cases mélodie que d'accords (pas 8 fixes).
+                  melody: Array(prog.length).fill(null),
                   genre: "rock",
                 });
                 setSaved(true);
@@ -664,6 +694,7 @@ function Compo60() {
                 setSaved(false);
                 setLeft(60);
                 setDone(false);
+                awarded.current = false;
               }}
             >
               {lang === "en" ? "Replay" : "Rejouer"}

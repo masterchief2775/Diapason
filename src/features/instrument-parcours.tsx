@@ -2,6 +2,7 @@ import { Lock } from "lucide-react";
 import { BackLink } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { useT, type Lang } from "@/lib/i18n";
+import { instUnlocked } from "@/lib/instrument-curriculum";
 import { cn } from "@/lib/utils";
 
 /**
@@ -59,9 +60,10 @@ export function InstrumentParcours({
           <div className="fill-sage h-full" style={{ width: `${order.length ? (doneCount / order.length) * 100 : 0}%` }} />
         </div>
         <ul className="m-0 list-none p-0">
-          {lessons.map((l, i) => {
+          {lessons.map((l) => {
             const done = completed.includes(l.id);
-            const open = i === 0 || completed.includes(order[i - 1]);
+            // Verrou par id (pas par position) : robuste à tout réordonnancement.
+            const open = instUnlocked(order, completed, l.id);
             const sc = scores[l.id];
             return (
               <li key={l.id} className="border-t border-line py-2 text-sm first:border-t-0">

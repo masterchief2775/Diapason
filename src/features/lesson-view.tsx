@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Fretboard, NoteSymbol } from "@/components/fretboard";
 import { BackLink, Button, Chip } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock, Recap } from "@/features/quiz-block";
-import { resumeAudio, playIntervalAscending, playChordNow, playClick, getAudioContext, playTone, freqForOffset } from "@/lib/audio";
+import { resumeAudio, playChordNow, playClick, getAudioContext, playTone, freqForOffset } from "@/lib/audio";
 import { LESSONS, QUIZZES, lessonById, lessonText, quizFor } from "@/lib/curriculum";
 import { useLang, useNN, useT } from "@/lib/i18n";
 import {
@@ -26,7 +26,6 @@ import {
   inversionVoicing,
   noteAt,
   renderTabText,
-  shuffle,
   suggestNextDegrees,
   type ModeKey,
 } from "@/lib/music";
@@ -44,6 +43,7 @@ export function LessonView({ id }: { id: string }) {
   if (!lesson) {
     return (
       <Page>
+        <BackLink onClick={() => nav({ to: "/parcours" })} label={t("nav.path")} />
         <p>{t("lesson.notFound")}</p>
       </Page>
     );
@@ -89,7 +89,11 @@ export function LessonView({ id }: { id: string }) {
       {id === "melodie" && <MelodyMini onFinish={finish} />}
       {id === "genres" && <GenreMini onFinish={finish} />}
       {id === "projet" && <ProjetMini onFinish={finish} />}
-      {QUIZZES[id] && id !== "analyse" && (
+      {/* Leçons SANS exercice dédié : quiz générique sur leur propre banque.
+          (Toute leçon du parcours doit avoir soit un exercice ci-dessus, soit
+          figurer ici — sinon la page est vide et la leçon jamais terminable,
+          ce qui verrouille toute la suite du parcours.) */}
+      {["notes", "structure", "harmonie-fonc"].includes(id) && QUIZZES[id] && (
         <TheoryQuiz
           intro={txt.intro}
           questions={quizFor(lang, id)}
@@ -421,6 +425,9 @@ function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const taps: { current: number[] } = useState({ current: [] as number[] })[0];
   const nav = useNavigate();
 
+  // Quitter la leçon en cours de run ne doit ni scorer ni créditer après coup.
+  useEffect(() => () => timers.splice(0).forEach((t) => window.clearTimeout(t)), [timers]);
+
   const start = async () => {
     const ctx = await resumeAudio();
     timers.splice(0).forEach((t) => clearTimeout(t));
@@ -429,11 +436,16 @@ function RhythmExercise({ onFinish }: { onFinish: (p: number) => void }) {
     setBeat(-1);
     const beatSec = 60 / tempo;
     const lead = 0.35;
-    const startCtx = ctx.currentTime + lead;
     const startPerf = performance.now() + lead * 1000;
     expected.current = Array.from({ length: BEATS }, (_, i) => startPerf + i * beatSec * 1000);
     taps.current = [];
-    for (let i = 0; i < BEATS; i++) playClick(ctx, startCtx + i * beatSec, i % 4 === 0);
+    // Clics via minuteurs (annulables si on quitte) plutôt qu'en bloc à
+    // temps absolus AudioContext (impossible à interrompre).
+    expected.current.forEach((t, i) => {
+      timers.push(
+        window.setTimeout(() => playClick(ctx, ctx.currentTime, i % 4 === 0), Math.max(0, t - performance.now())),
+      );
+    });
     expected.current.forEach((t, i) => {
       timers.push(window.setTimeout(() => setBeat(i), Math.max(0, t - performance.now())));
     });
@@ -551,10 +563,30 @@ function MancheExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [fb, setFb] = useState<"ok" | "ko" | null>(null);
   const [round, setRound] = useState(0);
   const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
   const total = 6;
   const t = useT();
   const nn = useNN();
   const nav = useNavigate();
+
+  if (done) {
+    return (
+      <Recap
+        score={score}
+        total={total}
+        onRetry={() => {
+          setScore(0);
+          setRound(0);
+          setTarget(Math.floor(Math.random() * 12));
+          setFb(null);
+          setDone(false);
+        }}
+        onBack={() => nav({ to: "/parcours" })}
+        perfect={t("nk.good")}
+        ok={t("lesson.retry60")}
+      />
+    );
+  }
 
   return (
     <>
@@ -582,7 +614,7 @@ function MancheExercise({ onFinish }: { onFinish: (p: number) => void }) {
             onClick={() => {
               if (round + 1 >= total) {
                 onFinish(Math.round(((score) / total) * 100));
-                nav({ to: "/parcours" });
+                setDone(true);
               } else {
                 setRound((r) => r + 1);
                 setTarget(Math.floor(Math.random() * 12));
@@ -610,16 +642,25 @@ function ExploreThenQuiz({
 }) {
   const [step, setStep] = useState<"explore" | "quiz" | "recap">("explore");
   const [pct, setPct] = useState(0);
+  // Valider exige au moins une interaction avec l'explorateur (choisir une
+  // tonique, cliquer le manche, écouter un accord) : pas de validation
+  // sans avoir touché au contenu.
+  const [touched, setTouched] = useState(false);
   const t = useT();
   const lang = useLang();
   const nav = useNavigate();
   if (step === "explore") {
     return (
       <>
-        {children}
-        <Button className="mt-6" onClick={() => setStep("quiz")}>
+        <div onClickCapture={() => setTouched(true)}>{children}</div>
+        <Button className="mt-6" onClick={() => setStep("quiz")} disabled={!touched}>
           {t("ui.validateQuiz")}
         </Button>
+        {!touched && (
+          <p className="mt-2 text-xs text-subtle">
+            {lang === "en" ? "Explore first: pick a root, tap the neck, hear a chord." : "Explore d'abord : choisis une tonique, touche le manche, écoute un accord."}
+          </p>
+        )}
       </>
     );
   }
@@ -652,6 +693,7 @@ function MajorScaleExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const t = useT();
   const nn = useNN();
   const steps = [0, 2, 4, 5, 7, 9, 11];
+  // Banque "gamme-maj" dédiée (motifs, I–IV–V) : pas le quiz général des gammes.
   return (
     <ExploreThenQuiz quizId="gamme-maj" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
@@ -826,10 +868,10 @@ function CadenceExercise({ onFinish }: { onFinish: (p: number) => void }) {
 function ExoticExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const [root, setRoot] = useState(0);
   const [sid, setSid] = useState<"whole" | "hw-dim" | "harm-min">("whole");
-  const t = useT();
   const lang = useLang();
   const nn = useNN();
   const scale = SCALES.find((s) => s.id === sid)!;
+  // Banque "modes-exo" dédiée (par tons, diminuée, mineure harmonique).
   return (
     <ExploreThenQuiz quizId="modes-exo" onFinish={onFinish}>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
@@ -858,7 +900,6 @@ function ExoticExercise({ onFinish }: { onFinish: (p: number) => void }) {
 
 function ReharmoExercise({ onFinish }: { onFinish: (p: number) => void }) {
   const key = 0;
-  const t = useT();
   const lang = useLang();
   const nn = useNN();
   const play = async (useSub: boolean) => {
@@ -1187,6 +1228,8 @@ function OddMeterTap({ beats, groups }: { beats: number; groups: number[] }) {
   const timers = useState<number[]>([])[0];
   const expected: { current: number[] } = useState({ current: [] as number[] })[0];
   const taps: { current: number[] } = useState({ current: [] as number[] })[0];
+  // Quitter en cours de run : pas de setState ni de onFinish après démontage.
+  useEffect(() => () => timers.splice(0).forEach((tm) => window.clearTimeout(tm)), [timers]);
   const groupOf = (i: number) => {
     let acc = 0;
     for (let g = 0; g < groups.length; g++) {
@@ -1195,7 +1238,13 @@ function OddMeterTap({ beats, groups }: { beats: number; groups: number[] }) {
     }
     return 0;
   };
-  const groupStarts = groups.reduce((acc: number[], g) => [...acc, (acc[acc.length - 1] ?? 0) + g], []);
+  // Départs de groupes : ex. [3,2] → [0,3]. Le temps 1 (downbeat)
+  // est toujours accentué (l'ancien calcul donnait [3,5]).
+  const groupStarts: number[] = [];
+  groups.reduce((sum, g) => {
+    groupStarts.push(sum);
+    return sum + g;
+  }, 0);
 
   const start = async () => {
     const ctx = await resumeAudio();
@@ -1205,13 +1254,16 @@ function OddMeterTap({ beats, groups }: { beats: number; groups: number[] }) {
     setBeat(-1);
     const beatSec = 0.55;
     const lead = 0.4;
-    const startCtx = ctx.currentTime + lead;
     const startPerf = performance.now() + lead * 1000;
     expected.current = Array.from({ length: beats }, (_, i) => startPerf + i * beatSec * 1000);
     taps.current = [];
-    for (let i = 0; i < beats; i++) {
-      playClick(ctx, startCtx + i * beatSec, groupStarts.includes(i));
-    }
+    // Clics via minuteurs annulables (cf. RhythmExercise) : quitter en
+    // cours de run coupe le métronome au lieu de le laisser finir.
+    expected.current.forEach((tm, i) => {
+      timers.push(
+        window.setTimeout(() => playClick(ctx, ctx.currentTime, groupStarts.includes(i)), Math.max(0, tm - performance.now())),
+      );
+    });
     expected.current.forEach((tm, i) => {
       timers.push(window.setTimeout(() => setBeat(i), Math.max(0, tm - performance.now())));
     });
@@ -1284,9 +1336,10 @@ function MelodyMini({ onFinish }: { onFinish: (p: number) => void }) {
   return (
     <>
       <p className="mb-4 max-w-xl text-[15px] leading-relaxed text-muted">
-        {t("st.melodyHint")}
+        {t("melody.intro")}
       </p>
-      <StudioEmbed onSaved={() => onFinish(100)} />
+      {/* requireSave : pas de validation sur une grille vide. */}
+      <StudioEmbed requireSave onSaved={() => onFinish(100)} />
     </>
   );
 }
@@ -1303,7 +1356,8 @@ function GenreMini({ onFinish }: { onFinish: (p: number) => void }) {
           </div>
         ))}
       </div>
-      <StudioEmbed onSaved={() => onFinish(100)} />
+      {/* requireSave : pas de validation sur une grille vide. */}
+      <StudioEmbed requireSave onSaved={() => onFinish(100)} />
     </>
   );
 }
@@ -1347,10 +1401,29 @@ export function CompositionInner({
   const degrees = Array.from({ length: 7 }, (_, i) => degreeChord(keyRoot, mode, i));
   const scaleSteps = mode === "majeure" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
   const suggestions = suggestNextDegrees(progression[progression.length - 1], mode);
+  // Garde anti-chevauchement : réappuyer sur Écouter relance au lieu
+  // d'empiler deux grilles ; tout est annulé au démontage.
+  const playTimers = useRef<number[]>([]);
+  const alive = useRef(true);
+  // Second clic sur Écouter pendant la lecture = ignoré (pas de grille
+  // empilée par-dessus) ; la lecture en cours va au bout.
+  const playingRef = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    const timers = playTimers.current;
+    return () => {
+      alive.current = false;
+      playingRef.current = false;
+      timers.splice(0).forEach((tm) => window.clearTimeout(tm));
+    };
+  }, []);
 
   const playProgression = async () => {
-    if (!progression.length) return;
+    if (!progression.length || playingRef.current) return;
+    playTimers.current.splice(0).forEach((tm) => window.clearTimeout(tm));
     const ctx = await resumeAudio();
+    if (!alive.current) return;
+    playingRef.current = true;
     const dur = 0.85;
     const now = ctx.currentTime + 0.08;
     progression.forEach((d, i) => {
@@ -1362,9 +1435,14 @@ export function CompositionInner({
       if (m != null) {
         playTone(ctx, freqForOffset(keyRoot, scaleSteps[m] + 12), now + i * dur, dur * 0.9, 0.16);
       }
-      window.setTimeout(() => setPlaying(i), i * dur * 1000);
+      playTimers.current.push(window.setTimeout(() => {
+        if (alive.current) setPlaying(i);
+      }, i * dur * 1000));
     });
-    window.setTimeout(() => setPlaying(-1), progression.length * dur * 1000);
+    playTimers.current.push(window.setTimeout(() => {
+      if (alive.current) setPlaying(-1);
+      playingRef.current = false;
+    }, progression.length * dur * 1000));
   };
 
   /** Harmonisation auto : 1 note de l'accord par temps (fondamentale, tierce, quinte…). */
@@ -1598,8 +1676,8 @@ export function CompositionInner({
         </label>
         <Button
           onClick={() => {
-            savePiece({ title: title || t("st.untitled"), keyRoot, mode, progression, melody, genre });
-            onSaved?.();
+            // savePiece dit si la pièce est nouvelle (doublon → pas de validation).
+            if (savePiece({ title: title || t("st.untitled"), keyRoot, mode, progression, melody, genre })) onSaved?.();
           }}
           disabled={requireSave && progression.length < 4}
         >

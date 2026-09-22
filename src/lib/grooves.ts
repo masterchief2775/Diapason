@@ -66,7 +66,13 @@ export const GROOVES: Groove[] = [
     en: "Bossa-nova",
     descFr: "Grosse caisse décalée, charleston ouvert qui respire.",
     descEn: "Off-beat kick, breathing open hi-hat.",
-    steps: build(hat8({ 0: ["kick"], 4: ["snare"], 6: ["kick"], 8: ["kick"], 12: ["snare"], 14: ["openhat"] })),
+    steps: (() => {
+      // hat8 ajoute un charleston fermé sur tous les pas pairs — sauf le 14
+      // qui porte déjà le charleston OUVERT (les deux ensemble = impossible).
+      const s = hat8({ 0: ["kick"], 4: ["snare"], 6: ["kick"], 8: ["kick"], 12: ["snare"], 14: ["openhat"] });
+      s[14] = ["openhat"];
+      return build(s);
+    })(),
   },
 ];
 

@@ -1,7 +1,8 @@
 import type { Lang } from "./i18n";
-import { LESSON_ORDER } from "./curriculum";
+import { LESSONS, LESSON_ORDER } from "./curriculum";
 
 const TOTAL = LESSON_ORDER.length;
+const PHASE1 = LESSONS.filter((l) => l.phase === 1).map((l) => l.id);
 
 export type BadgeIcon =
   | "sprout"
@@ -34,7 +35,7 @@ export type Badge = {
 export const BADGES: Badge[] = [
   { id: "first-steps", title: "Premiers pas", desc: "Terminer 1 leçon.", icon: "sprout", accent: "#7fb069", test: (a) => a.completed.length >= 1 },
   { id: "assidu", title: "Assidu", desc: "3 jours d'affilée.", icon: "flame", accent: "#e07a3f", test: (a) => a.streak >= 3 },
-  { id: "fondations", title: "Bâtisseur", desc: "Terminer les 5 leçons de Phase 1.", icon: "hammer", accent: "#c9a227", test: (a) => a.completed.length >= 5 },
+  { id: "fondations", title: "Bâtisseur", desc: "Terminer les 5 leçons de Phase 1.", icon: "hammer", accent: "#c9a227", test: (a) => PHASE1.every((id) => a.completed.includes(id)) },
   { id: "harmoniste", title: "Harmoniste", desc: "Terminer 10 leçons.", icon: "music", accent: "#6aa9d8", test: (a) => a.completed.length >= 10 },
   { id: "explorateur", title: "Explorateur", desc: "Terminer 15 leçons.", icon: "compass", accent: "#4fa3a3", test: (a) => a.completed.length >= 15 },
   { id: "sans-faute", title: "Sans faute", desc: "100 % quelque part (leçon ou oreille).", icon: "star", accent: "#e5c158", test: (a) => Object.values(a.scores).some((v) => v >= 100) },
@@ -113,6 +114,21 @@ export function xpProgress(xp: number): { level: number; cur: number; next: numb
   const next = xpForLevel(level + 1);
   const pct = next <= cur ? 1 : Math.min(1, Math.max(0, (xp - cur) / (next - cur)));
   return { level, cur, next, pct };
+}
+
+/** Date locale AAAA-MM-JJ : streaks, activité et défi suivent le jour de
+ * l'utilisateur, pas UTC (sinon visite de 00h30 = "hier", et deux jours
+ * locaux fusionnent en une seule date UTC). */
+export function localDayISO(d = new Date()): string {
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+export function localYesterdayISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return localDayISO(d);
 }
 
 export type ProgressSnap = {
@@ -241,13 +257,13 @@ export function reviewQueue(args: {
   return [...weak, ...todo].slice(0, 3);
 }
 
-/** 14 derniers jours d'activité pour le graphique. */
+/** 14 derniers jours d'activité pour le graphique (jours locaux). */
 export function last14Days(activity: Record<string, number>): { day: string; xp: number }[] {
   const out: { day: string; xp: number }[] = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const iso = d.toISOString().slice(0, 10);
+    const iso = localDayISO(d);
     out.push({ day: iso.slice(5), xp: activity[iso] ?? 0 });
   }
   return out;
@@ -260,7 +276,7 @@ export function dailyChallenge(dateISO?: string): {
   label: string;
   detail: string;
 } {
-  const d = dateISO ?? new Date().toISOString().slice(0, 10);
+  const d = dateISO ?? localDayISO();
   let h = 0;
   for (const c of d) h = (h * 31 + c.charCodeAt(0)) % 997;
   const kinds = [

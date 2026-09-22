@@ -4,6 +4,7 @@ import { Guitar, Languages, Music4, Palette, Piano, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { useProgress } from "@/lib/progress";
+import { eraseCloud } from "@/lib/sync";
 import { useT, type Lang, type Naming } from "@/lib/i18n";
 import { THEMES, type ThemeId } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -127,7 +128,10 @@ function SettingsPage() {
                 <Button
                   variant="danger"
                   onClick={() => {
+                    // Le reset local seul ressusciterait au prochain pull :
+                    // on efface aussi la copie cloud.
                     resetAll();
+                    void eraseCloud().catch(() => {});
                     setConfirm(false);
                   }}
                 >

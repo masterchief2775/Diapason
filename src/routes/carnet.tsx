@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NotebookPen, Plus } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { Page, Title } from "@/features/page";
@@ -25,6 +25,12 @@ function JournalPage() {
   const { isPending } = useCurrentUserState();
   const userId = useCurrentUserState().user?.id;
   const [published, setPublished] = useState<Set<string>>(new Set());
+  // Garde anti-chevauchement : un seul Écouter à la fois.
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const playTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (playTimer.current !== null) window.clearTimeout(playTimer.current);
+  }, []);
 
   useEffect(() => {
     if (isPending || !userId) return;
@@ -79,7 +85,10 @@ function JournalPage() {
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
+                    disabled={playingId !== null}
                     onClick={async () => {
+                      if (playingId !== null) return;
+                      setPlayingId(p.id);
                       const ctx = await resumeAudio();
                       const now = ctx.currentTime + 0.05;
                       const steps = p.mode === "majeure" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
@@ -89,13 +98,15 @@ function JournalPage() {
                           playTone(ctx, freqForOffset(p.keyRoot, ch.rootOffset + iv), now + i * 0.8, 0.75, 0.1);
                         });
                         const m = p.melody[i];
-                        if (m != null) {
+                        if (m != null && steps[m] != null) {
                           playTone(ctx, freqForOffset(p.keyRoot, steps[m] + 12), now + i * 0.8, 0.7, 0.16);
                         }
                       });
+                      if (playTimer.current !== null) window.clearTimeout(playTimer.current);
+                      playTimer.current = window.setTimeout(() => setPlayingId(null), p.progression.length * 800 + 1200);
                     }}
                   >
-                    {t("ui.listen")}
+                    {playingId === p.id ? "…" : t("ui.listen")}
                   </Button>
                   {!isPending && userId && (
                     published.has(p.id) ? (
@@ -142,7 +153,16 @@ function JournalPage() {
                       </Button>
                     )
                   )}
-                  <Button variant="ghost" onClick={() => deletePiece(p.id)}>
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      // Retirer dépublie aussi : sinon la copie cloud survit
+                      // en galerie alors que le morceau n'existe plus.
+                      loadGallery()
+                        .then((m) => m.unpublishPiece({ data: p.id }).catch(() => {}))
+                        .then(() => deletePiece(p.id))
+                    }
+                  >
                     {lang === "en" ? "Remove" : "Retirer"}
                   </Button>
                 </div>

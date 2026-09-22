@@ -47,27 +47,30 @@ function ProfilPage() {
   const [confirmErase, setConfirmErase] = useState(false);
   const [mounted, setMounted] = useState(false);
   const autoDone = useRef(false);
+  const autoUser = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (isPending || !userId || autoDone.current) return;
+    if (isPending || !userId) return;
+    // Nouveau compte dans la même session SPA : on resynchronise, sinon le
+    // nouvel utilisateur hérite de l'état local périmé sans watcher.
+    if (autoUser.current !== userId) {
+      autoUser.current = userId;
+      autoDone.current = false;
+    }
+    if (autoDone.current) return;
     autoDone.current = true;
-    let unwatch: (() => void) | undefined;
     setSyncState("working");
     loadSync()
-      .then((m) => {
-        unwatch = m.watchLocalChanges();
-        return m.syncProgress();
-      })
+      .then((m) => m.syncProgress())
       .then((o) => {
         setOutcome(o);
         setSyncState("ok");
       })
       .catch(() => setSyncState("error"));
-    return () => unwatch?.();
   }, [isPending, userId]);
 
   if (!mounted || isPending) {
@@ -199,7 +202,10 @@ function ProfilPage() {
                   loadSync()
                     .then((m) => m.eraseCloud())
                     .then(() => setConfirmErase(false))
-                    .catch(() => setConfirmErase(false))
+                    .catch(() => {
+                      setConfirmErase(false);
+                      setSyncState("error");
+                    })
                 }
               >
                 {t("profil.deleteYes")}

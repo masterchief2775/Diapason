@@ -42,13 +42,12 @@ function Parcours() {
               const done = completed.includes(m.id);
               const open = isUnlocked(m.id);
               const currentOne = m.id === current;
-              return (
-                <Link
-                  key={m.id}
-                  to="/lecon/$id"
-                  params={{ id: m.id }}
-                  className="group flex items-center gap-3 border-t border-line px-1 py-3 text-fg no-underline first:border-t-0"
-                >
+              // Verrouillé = non cliquable (pas de détour vers le mur) ;
+              // Link garde la même apparence via les mêmes classes.
+              const cls =
+                "group flex items-center gap-3 border-t border-line px-1 py-3 text-fg no-underline first:border-t-0";
+              const inner = (
+                <>
                   <span className={cn(
                     "grid size-7 shrink-0 place-items-center rounded-full border",
                     done && "border-sage bg-sage-dim text-sage",
@@ -66,7 +65,16 @@ function Parcours() {
                     <span className="shrink-0 font-mono text-xs text-sage">{scores[m.id]}%</span>
                   )}
                   <ChevronRight size={15} className="shrink-0 text-subtle opacity-0 transition-all group-hover:translate-x-0.5 group-hover:text-gold group-hover:opacity-100" />
+                </>
+              );
+              return open || done ? (
+                <Link key={m.id} to="/lecon/$id" params={{ id: m.id }} className={cls}>
+                  {inner}
                 </Link>
+              ) : (
+                <span key={m.id} className={cls} aria-disabled="true" title={lang === "en" ? "Finish the previous lesson first" : "Termine d'abord la leçon précédente"}>
+                  {inner}
+                </span>
               );
             })}
           </div>

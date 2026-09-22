@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Button, ScoreRing } from "@/components/ui";
 import type { Mcq } from "@/lib/curriculum";
-import { playFanfare } from "@/lib/audio";
+import { playFanfare, type Timbre } from "@/lib/audio";
 import { burst } from "@/lib/confetti";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,14 @@ export function QuizBlock({
   const q = questions[i];
   const last = i + 1 >= questions.length;
 
-  if (!q) return null;
+  // Banque vide : message explicite au lieu d'une impasse blanche.
+  if (!q) {
+    return (
+      <div className="pop-in">
+        <p className="m-0 text-sm text-muted">{t("lesson.notFound")}</p>
+      </div>
+    );
+  }
 
   const choose = (idx: number) => {
     setPicked(idx);
@@ -119,6 +126,7 @@ export function Recap({
   onBack,
   perfect,
   ok,
+  fanfareTimbre,
 }: {
   score: number;
   total: number;
@@ -126,15 +134,17 @@ export function Recap({
   onBack: () => void;
   perfect: string;
   ok: string;
+  fanfareTimbre?: Timbre;
 }) {
   const pct = total ? Math.round((score / total) * 100) : score;
   const t = useT();
   const passed = pct >= 60;
-  // Célébration d'arrivée : confettis + fanfare quand c'est validé.
+  // Célébration d'arrivée : confettis + fanfare quand c'est validé (60 %+,
+  // que le score soit un compte ou déjà un pourcentage).
   useEffect(() => {
-    if ((total > 0 && pct >= 60) || (total === 0 && score > 0)) {
+    if (pct >= 60 && score > 0) {
       burst({ count: 50 });
-      playFanfare();
+      playFanfare(fanfareTimbre);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -150,7 +160,9 @@ export function Recap({
         </p>
       )}
       <p className={cn("mx-auto mt-3 mb-8 max-w-md text-sm", passed ? "text-sage" : "text-muted")}>
-        {pct >= 80 ? perfect : ok}
+        {/* `perfect` = message de réussite : dès le seuil de passage (60 %),
+            pas 80 — sinon une leçon validée affiche un message d'échec. */}
+        {passed ? perfect : ok}
       </p>
       <div className="flex justify-center gap-2">
         <Button variant="outline" onClick={onRetry}>

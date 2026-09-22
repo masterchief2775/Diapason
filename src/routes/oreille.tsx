@@ -74,12 +74,19 @@ function EarIntervals() {
   const t = useT();
   const lang = useLang();
   const addXp = useProgress((s) => s.addXp);
+  const recordBest = useProgress((s) => s.recordBest);
   const setScoreStore = useProgress((s) => s.setScore);
   const nav = useNavigate();
   const ivLabel = (o: (typeof INTERVALS)[number]) => (lang === "en" ? o.labelEn : o.label);
+  // La lecture auto est différée de 200 ms : sans ce minuteur annulable, une
+  // question planifiée continue de jouer après un changement d'onglet ou un
+  // « Suivant » rapide et se superpose à la suivante (cacophonie).
+  const autoTimer = useRef<number | null>(null);
+  const alive = useRef(true);
 
   const play = async (semis: number) => {
     await resumeAudio();
+    if (!alive.current) return;
     playIntervalAscending(4, semis);
   };
 
@@ -90,11 +97,17 @@ function EarIntervals() {
     setQuestion(correct);
     setChoices(opts);
     setSelected(null);
-    setTimeout(() => play(correct.semis), 200);
+    if (autoTimer.current !== null) window.clearTimeout(autoTimer.current);
+    autoTimer.current = window.setTimeout(() => void play(correct.semis), 200);
   };
 
   useEffect(() => {
+    alive.current = true;
     newQ();
+    return () => {
+      alive.current = false;
+      if (autoTimer.current !== null) window.clearTimeout(autoTimer.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -149,7 +162,7 @@ function EarIntervals() {
               onClick={() => {
                 if (round + 1 >= total) {
                   const final = score;
-                  addXp(final * 3, "feed.ear");
+                  if (recordBest("oreille-intervalles", final) && final > 0) addXp(final * 3, "feed.ear");
                   if (final === total) setScoreStore("oreille-parfait", 100);
                   setRound(total);
                 } else {
@@ -210,7 +223,12 @@ function EarChords() {
   const lang = useLang();
   const nn = useNN();
   const addXp = useProgress((s) => s.addXp);
+  const recordBest = useProgress((s) => s.recordBest);
   const qName = (q: (typeof CHORD_POOL)[number]) => (lang === "en" ? q.labelEn : q.label);
+  // Même garde que les intervalles : annule la lecture planifiée quand on
+  // change d'onglet ou qu'on enchaîne vite, sinon deux accords se chevauchent.
+  const autoTimer = useRef<number | null>(null);
+  const alive = useRef(true);
 
   const deal = async () => {
     const root = Math.floor(Math.random() * 12);
@@ -221,12 +239,20 @@ function EarChords() {
     setOpts(four);
     setSel(null);
     await resumeAudio();
-    setTimeout(() => playChordQuality(root, q.formula), 200);
+    if (!alive.current) return;
+    if (autoTimer.current !== null) window.clearTimeout(autoTimer.current);
+    autoTimer.current = window.setTimeout(() => {
+      if (alive.current) playChordQuality(root, q.formula);
+    }, 200);
   };
 
   useEffect(() => {
+    alive.current = true;
     void deal();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      alive.current = false;
+      if (autoTimer.current !== null) window.clearTimeout(autoTimer.current);
+    };
   }, []);
 
   if (round >= total) {
@@ -253,7 +279,7 @@ function EarChords() {
       </div>
       <button
         type="button"
-        onClick={() => playChordQuality(target.root, target.q.formula)}
+        onClick={() => void (async () => { await resumeAudio(); playChordQuality(target.root, target.q.formula); })()}
         className="mx-auto mb-7 flex items-center gap-2 rounded-md border border-line bg-surface px-7 py-4 text-gold"
       >
         <Music2 size={18} /> {lang === "en" ? "Replay the chord" : "Rejouer l'accord"} ({nn[target.root]} ?)
@@ -288,10 +314,10 @@ function EarChords() {
       {sel && (
         <Button
           className="mt-5"
-          onClick={() => {
-            if (round + 1 >= total) {
-              addXp(score * 3, "feed.ear");
-              setRound(total);
+            onClick={() => {
+              if (round + 1 >= total) {
+                if (recordBest("oreille-accords", score) && score > 0) addXp(score * 3, "feed.ear");
+                setRound(total);
             } else {
               setRound((r) => r + 1);
               void deal();
@@ -314,12 +340,21 @@ function EarProgressions() {
   const [score, setScore] = useState(0);
   const [round, setRound] = useState(0);
   const timers = useRef<number[]>([]);
+  const alive = useRef(true);
   const total = 6;
   const t = useT();
   const lang = useLang();
   const addXp = useProgress((s) => s.addXp);
+  const recordBest = useProgress((s) => s.recordBest);
 
-  useEffect(() => () => timers.current.forEach((tm) => clearTimeout(tm)), []);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      timers.current.forEach((tm) => clearTimeout(tm));
+      timers.current = [];
+    };
+  }, []);
 
   const playProg = async (p: typeof target) => {
     const ctx = await resumeAudio();
@@ -333,12 +368,18 @@ function EarProgressions() {
   };
 
   const deal = () => {
+    // Annule la grille précédente encore en attente : sinon un « Suivant »
+    // rapide empile deux grilles l'une sur l'autre.
+    timers.current.forEach((tm) => clearTimeout(tm));
+    timers.current = [];
     const tm = PROGRESSION_LIBRARY[Math.floor(Math.random() * PROGRESSION_LIBRARY.length)];
     const others = shuffle(PROGRESSION_LIBRARY.filter((p) => p.id !== tm.id)).slice(0, 3);
     setTarget(tm);
     setOpts(shuffle([tm, ...others]));
     setSel(null);
-    timers.current.push(window.setTimeout(() => void playProg(tm), 250));
+    timers.current.push(window.setTimeout(() => {
+      if (alive.current) void playProg(tm);
+    }, 250));
   };
 
   useEffect(() => {
@@ -370,7 +411,7 @@ function EarProgressions() {
       </div>
       <button
         type="button"
-        onClick={() => void playProg(target)}
+        onClick={() => void (async () => { await resumeAudio(); void playProg(target); })()}
         className="mx-auto mb-7 flex items-center gap-2 rounded-md border border-line bg-surface px-7 py-4 text-gold"
       >
         <Music2 size={18} /> {lang === "en" ? "Replay the progression" : "Rejouer la grille"}
@@ -409,7 +450,7 @@ function EarProgressions() {
             className="mt-3"
             onClick={() => {
               if (round + 1 >= total) {
-                addXp(score * 4, "feed.ear");
+                if (recordBest("oreille-progressions", score) && score > 0) addXp(score * 4, "feed.ear");
                 setRound(total);
               } else {
                 setRound((r) => r + 1);
@@ -437,8 +478,11 @@ function EarModes() {
   const t = useT();
   const lang = useLang();
   const addXp = useProgress((s) => s.addXp);
+  const recordBest = useProgress((s) => s.recordBest);
   const parent = [0, 2, 4, 5, 7, 9, 11];
   const modeName = (d: number) => (lang === "en" ? MODES_MAJOR[d].nameEn : MODES_MAJOR[d].name);
+  const autoTimer = useRef<number | null>(null);
+  const alive = useRef(true);
 
   const stepsFor = (d: number) =>
     parent.map((s) => (s - parent[d] + 12) % 12).sort((a, b) => a - b);
@@ -458,11 +502,19 @@ function EarModes() {
     setDeg(d);
     setOpts(shuffle([d, ...others]));
     setSel(null);
-    setTimeout(() => void playMode(d), 250);
+    if (autoTimer.current !== null) window.clearTimeout(autoTimer.current);
+    autoTimer.current = window.setTimeout(() => {
+      if (alive.current) void playMode(d);
+    }, 250);
   };
 
   useEffect(() => {
+    alive.current = true;
     deal();
+    return () => {
+      alive.current = false;
+      if (autoTimer.current !== null) window.clearTimeout(autoTimer.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -490,7 +542,7 @@ function EarModes() {
       </div>
       <button
         type="button"
-        onClick={() => void playMode(deg)}
+        onClick={() => void (async () => { await resumeAudio(); void playMode(deg); })()}
         className="mx-auto mb-7 flex items-center gap-2 rounded-md border border-line bg-surface px-7 py-4 text-gold"
       >
         <Music2 size={18} /> {lang === "en" ? "Replay the mode" : "Rejouer le mode"}
@@ -531,7 +583,7 @@ function EarModes() {
             className="mt-3"
             onClick={() => {
               if (round + 1 >= total) {
-                addXp(score * 4, "feed.ear");
+                if (recordBest("oreille-modes", score) && score > 0) addXp(score * 4, "feed.ear");
                 setRound(total);
               } else {
                 setRound((r) => r + 1);
@@ -592,8 +644,12 @@ function EarMic() {
   );
 }
 
-function MicGate({ children }: { children: (api: ReturnType<typeof useMic>) => React.ReactNode }) {
-  const api = useMic();
+function MicGate({ children, api: externalApi }: { children: (api: ReturnType<typeof useMic>) => React.ReactNode; api?: ReturnType<typeof useMic> }) {
+  const innerApi = useMic();
+  // Un appelant déjà équipé (ex. jeu avec callback de détection) pilote
+  // l'instance partagée ; sinon la gate possède la sienne. Sans ce partage,
+  // deux instances coexistent et le jeu reste bloqué derrière le garde.
+  const api = externalApi ?? innerApi;
   const lang = useLang();
   if (api.state === "idle" || api.state === "starting") {
     return (
@@ -669,7 +725,11 @@ function Tuner() {
           <div className="mb-5 flex flex-wrap justify-center gap-1.5">
             {OPEN_STRINGS.map((s) => {
               const dist = api.live ? api.live.midi - s.midi : null;
-              const near = dist != null && Math.abs(dist) <= 6;
+              // Écart réel en cents (distance entière + fraction microtonale),
+              // pas la distance entière ×100 ; fenêtre ±2 demi-tons pour ne
+              // pas allumer 2–3 cordes à la fois.
+              const centsTotal = dist != null ? dist * 100 + (api.live?.cents ?? 0) : null;
+              const near = centsTotal != null && Math.abs(centsTotal) <= 200;
               return (
                 <span
                   key={s.label}
@@ -679,7 +739,7 @@ function Tuner() {
                   )}
                 >
                   {s.label} · {nn[[4, 9, 2, 7, 11, 4][6 - Number(s.label)] ?? 0]}
-                  {near && dist !== 0 ? ` (${dist > 0 ? "+" : ""}${dist * 100}c)` : ""}
+                  {near && centsTotal ? ` (${centsTotal > 0 ? "+" : ""}${centsTotal}c)` : ""}
                 </span>
               );
             })}
@@ -705,6 +765,7 @@ function PlayWhatYouHear() {
   const lang = useLang();
   const nn = useNN();
   const addXp = useProgress((s) => s.addXp);
+  const recordBest = useProgress((s) => s.recordBest);
 
   const deal = () => {
     setTarget(40 + Math.floor(Math.random() * 25));
@@ -717,11 +778,16 @@ function PlayWhatYouHear() {
 
   const api = useMic((note) => {
     if (!waitingRef.current || round >= total) return;
-    waitingRef.current = false;
     setHeard(note);
     const good = note.midi === target && Math.abs(note.cents) <= 30;
     setVerdict(good ? "ok" : "ko");
-    if (good) setScore((s) => s + 1);
+    // On ne verrouille que sur une bonne réponse : un "ko" (attaque floue,
+    // fausse note) laisse le micro écouter pour réessayer la même manche.
+    // Le bouton Suivant reste visible pour passer si on est coincé.
+    if (good) {
+      waitingRef.current = false;
+      setScore((s) => s + 1);
+    }
   });
 
   const playTarget = async () => {
@@ -738,7 +804,23 @@ function PlayWhatYouHear() {
   }, [api.state, round]);
 
   if (api.state !== "live") {
-    return <MicGate>{() => null}</MicGate>;
+    return (
+      <MicGate api={api}>
+        {() => (
+          <div className="pt-6 text-center">
+            <p className="mb-2 font-mono text-xs text-subtle">
+              {t("ui.question")} {Math.min(round + 1, total)}/{total} · {t("ui.score")} {score}
+            </p>
+            <Button variant="outline" onClick={() => void playTarget()}>
+              {lang === "en" ? "Hear the note" : "Écouter la note"}
+            </Button>
+            <p className="mt-4 text-sm text-muted">
+              {lang === "en" ? "Play it on your guitar." : "Joue-la sur ta guitare."}
+            </p>
+          </div>
+        )}
+      </MicGate>
+    );
   }
 
   if (round >= total) {
@@ -795,10 +877,10 @@ function PlayWhatYouHear() {
       )}
       {verdict && (
         <Button
-          onClick={() => {
-            if (round + 1 >= total) {
-              addXp(score * 4, "feed.ear");
-              setRound(total);
+            onClick={() => {
+              if (round + 1 >= total) {
+                if (recordBest("oreille-micro", score) && score > 0) addXp(score * 4, "feed.ear");
+                setRound(total);
             } else {
               setRound((r) => r + 1);
               deal();

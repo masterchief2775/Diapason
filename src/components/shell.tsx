@@ -1,6 +1,6 @@
 import { Link, Navigate, getRouteApi, useRouterState } from "@tanstack/react-router";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ArrowUp, Award, BookOpen, ChevronDown, ClipboardList, Compass, Dices, Download, Drum, Ear, Flame, Globe, Guitar, Hammer, Home, Music2, NotebookPen, Piano, ScrollText, Settings, Sparkles, Star, Target, Trophy, Wand2, WifiOff } from "lucide-react";
+import { ArrowUp, Award, BookOpen, ChevronDown, ClipboardList, Dices, Download, Drum, Ear, Flame, Globe, Guitar, Hammer, Home, Music2, NotebookPen, Piano, ScrollText, Settings, Sparkles, Star, Target, Trophy, Wand2, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { applyTheme } from "@/lib/theme";
 import { playFanfare } from "@/lib/audio";
 import { burst, celebrate } from "@/lib/confetti";
 import { pushToast, useFeed, type ToastKind } from "@/lib/feed";
-import { badgeText, earnedBadges, levelForXp, levelName, newBadges, xpProgress, type ProgressSnap } from "@/lib/gamification";
+import { badgeText, levelForXp, levelName, newBadges, xpProgress, type ProgressSnap } from "@/lib/gamification";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useProgress } from "@/lib/progress";
 
@@ -90,6 +90,17 @@ export function Shell({ children }: { children: ReactNode }) {
     applyTheme(theme);
   }, [theme]);
 
+  // Push différé vers le cloud : souscrit ici (coquille toujours montée) et
+  // plus seulement au passage sur /profil, sinon l'XP gagné ailleurs ne part
+  // jamais. L'envoi échoue silencieusement hors-ligne/déconnecté.
+  useEffect(() => {
+    let unwatch: (() => void) | undefined;
+    void import("@/lib/sync").then((m) => {
+      unwatch = m.watchLocalChanges();
+    });
+    return () => unwatch?.();
+  }, []);
+
   // Guette les récompenses : nouveaux badges + passages de niveau.
   // (sélecteurs primitifs uniquement : un objet recréé à chaque rendu
   //  boucle useSyncExternalStore pendant l'hydratation)
@@ -98,7 +109,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const scores = useProgress((s) => s.scores);
   const streak = useProgress((s) => s.streak);
   const piecesLen = useProgress((s) => s.pieces.length);
-  const [levelUp, setLevelUp] = useState<number | null>(null);
+  const [levelUps, setLevelUps] = useState<number[]>([]);
   const prevRef = useRef<{ snap: ProgressSnap; level: number } | null>(null);
 
   useEffect(() => {
@@ -112,13 +123,23 @@ export function Shell({ children }: { children: ReactNode }) {
     const prev = prevRef.current;
     prevRef.current = { snap: next, level: levelForXp(next.xp) };
     if (!prev) return; // premier rendu : pas de fanfare pour l'existant
+    // Reset total : on vide la file de modales (sinon un palier gagné avant
+    // le reset poppe après).
+    if (next.xp === 0 && next.completed.length === 0) {
+      setLevelUps([]);
+      return;
+    }
     for (const b of newBadges(prev.snap, next)) {
       const txt = badgeText(useProgress.getState().lang, b);
       pushToast("badge", txt.title, { sub: txt.desc });
       burst({ count: 60 });
     }
     if (levelForXp(next.xp) > prev.level) {
-      setLevelUp(levelForXp(next.xp));
+      // File des paliers franchis : un gros gain (+50 examen) peut sauter
+      // plusieurs niveaux, chacun sa modale à la fermeture de la précédente.
+      const crossed: number[] = [];
+      for (let lv = prev.level + 1; lv <= levelForXp(next.xp); lv++) crossed.push(lv);
+      setLevelUps((q) => [...q, ...crossed.filter((lv) => !q.includes(lv))]);
       celebrate();
       playFanfare();
     }
@@ -145,7 +166,6 @@ export function Shell({ children }: { children: ReactNode }) {
             {NAV_GROUPS.map((group) => {
               const GroupIcon = group.icon;
               const active = group.items.some((it) => pathname === it.to || pathname.startsWith(it.to + "/") || (it.to !== "/" && pathname === it.to));
-              const isOpen = group.items.some((it) => pathname === it.to);
               return (
                 <DropdownMenu.Root key={group.key}>
                   <DropdownMenu.Trigger asChild>
@@ -256,7 +276,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <main>{isPublic ? children : <RequireAuth online={online}>{children}</RequireAuth>}</main>
       {!isPublic && <Footer t={t} />}
       {!isPublic && <Toasts />}
-      {levelUp !== null && !isPublic && <LevelUpModal level={levelUp} onClose={() => setLevelUp(null)} />}
+      {levelUps.length > 0 && !isPublic && <LevelUpModal level={levelUps[0]} onClose={() => setLevelUps((q) => q.slice(1))} />}
       {!isPublic && (
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
         <div className="flex justify-around px-1 py-2">
@@ -334,35 +354,38 @@ function Toasts() {
   const toasts = useFeed((s) => s.toasts);
   const dismiss = useFeed((s) => s.dismiss);
   const t = useT();
-  useEffect(() => {
-    if (!toasts.length) return;
-    const timers = toasts.map((toast) => window.setTimeout(() => dismiss(toast.id), 4200));
-    return () => timers.forEach((tm) => window.clearTimeout(tm));
-  }, [toasts, dismiss]);
   if (!toasts.length) return null;
   return (
     <div className="pointer-events-none fixed right-4 bottom-20 z-[90] flex w-72 flex-col gap-2 md:bottom-6" aria-live="polite">
-      {toasts.map((toast) => {
-        const Icon = TOAST_ICON[toast.kind] ?? Star;
-        const title = toast.key.startsWith("feed.") ? t(toast.key).replace("{n}", String(toast.n ?? "")) : toast.key;
-        return (
-          <button
-            key={toast.id}
-            type="button"
-            onClick={() => dismiss(toast.id)}
-            className="pop-in pointer-events-auto flex items-center gap-3 rounded-xl border border-gold/40 bg-surface p-3 text-left shadow-xl"
-          >
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-raised text-gold">
-              <Icon size={17} />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium">{title}</span>
-              {toast.sub && <span className="block font-mono text-xs text-gold">{toast.sub}</span>}
-            </span>
-          </button>
-        );
-      })}
+      {toasts.slice(-3).map((toast) => (
+        <ToastItem key={toast.id} toast={toast} dismiss={dismiss} t={t} />
+      ))}
     </div>
+  );
+}
+
+/** Un toast, son propre compte à rebours (un nouveau toast ne réarme plus les autres). */
+function ToastItem({ toast, dismiss, t }: { toast: { id: number; kind: ToastKind; key: string; n?: number; sub?: string }; dismiss: (id: number) => void; t: (k: string) => string }) {
+  useEffect(() => {
+    const tm = window.setTimeout(() => dismiss(toast.id), 4200);
+    return () => window.clearTimeout(tm);
+  }, [toast.id, dismiss]);
+  const Icon = TOAST_ICON[toast.kind] ?? Star;
+  const title = toast.key.startsWith("feed.") ? t(toast.key).replace("{n}", String(toast.n ?? "")) : toast.key;
+  return (
+    <button
+      type="button"
+      onClick={() => dismiss(toast.id)}
+      className="pop-in pointer-events-auto flex items-center gap-3 rounded-xl border border-gold/40 bg-surface p-3 text-left shadow-xl"
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-raised text-gold">
+        <Icon size={17} />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium">{title}</span>
+        {toast.sub && <span className="block font-mono text-xs text-gold">{toast.sub}</span>}
+      </span>
+    </button>
   );
 }
 
@@ -432,7 +455,10 @@ function RequireAuth({ online, children }: { online: boolean; children: ReactNod
     );
   }
   if (!user && online) {
-    return <Navigate to="/login" search={{ redirect: pathname }} />;
+    // On conserve query + hash pour un vrai retour au lien profond (pas de
+    // souscription d'objet search : window suffit, rendu uniquement client ici).
+    const suffix = typeof window === "undefined" ? "" : `${window.location.search}${window.location.hash}`;
+    return <Navigate to="/login" search={{ redirect: `${pathname}${suffix}` }} />;
   }
   return <>{children}</>;
 }
@@ -443,7 +469,11 @@ function AuthSlot() {
   const xp = useProgress((s) => s.xp);
   const t = useT();
   // Première peinture SSR + client : la session cookie déjà connue, sans flash.
-  const effective = user ?? (sessionUser ? { id: sessionUser.id, displayName: null, primaryEmail: sessionUser.email, profileImageUrl: null, isDevFallback: false } : null);
+  // Passé le chargement, seul `user` fait foi : garder le fallback passé ce
+  // point afficherait un avatar connecté alors que le gate voit déconnecté.
+  const effective = isPending
+    ? (user ?? (sessionUser ? { id: sessionUser.id, displayName: null, primaryEmail: sessionUser.email, profileImageUrl: null, isDevFallback: false } : null))
+    : user;
   if (isPending && !sessionUser) {
     return <span className="size-8 animate-pulse rounded-full bg-line" aria-hidden />;
   }

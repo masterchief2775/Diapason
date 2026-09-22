@@ -2,7 +2,8 @@ import { playDrum, resumeAudio, type DrumKind } from "@/lib/audio";
 import { PADS } from "@/lib/grooves";
 import { useLang } from "@/lib/i18n";
 
-export function hitDrum(kind: DrumKind, peak = 0.5) {
+/** Frappe un fût (usage interne à la grille ; voir lib/audio pour le moteur). */
+function hitDrum(kind: DrumKind, peak = 0.5) {
   return resumeAudio().then((ctx) => playDrum(ctx, kind, ctx.currentTime, peak));
 }
 

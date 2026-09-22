@@ -364,7 +364,9 @@ export function suggestNextDegrees(lastDegree: number | undefined, mode: ModeKey
 /* ---------- Export MIDI minimal (format 0, 1 piste) ---------- */
 
 function varLen(n: number): number[] {
-  let v = n;
+  // Les deltas MIDI sont >= 0 : un chevauchement (note-off après le note-on
+  // suivant) est ramené à 0 au lieu de boucler à l'infini (>> arithmétique).
+  let v = Math.max(0, Math.floor(n));
   const out = [v & 0x7f];
   v >>= 7;
   while (v) {
@@ -385,17 +387,14 @@ export function buildMidiFile(opts: {
   const steps = mode === "majeure" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10];
   const tpq = 480;
   const track: number[] = [];
-  const pushNote = (tick: number, midi: number, dur: number, vel: number, lastTick: { v: number }) => {
-    const deltaOn = tick - lastTick.v;
-    track.push(...varLen(deltaOn), 0x90, midi, vel);
-    lastTick.v = tick;
-    track.push(...varLen(dur), 0x80, midi, 0x40);
-    lastTick.v = tick + dur;
-  };
   // tempo 120bpm
   track.push(0x00, 0xff, 0x51, 0x03, 0x07, 0xa1, 0x20);
   track.push(0x00, 0xc0, 0x00);
-  const last = { v: 0 };
+  // Événements absolus triés (note-on avant note-off à tick égal) : les
+  // notes d'un accord partagent le même tick et sonnent simultanées.
+  // (L'ancien pushNote séquentiel étirait chaque accord ~×4.)
+  type Ev = { tick: number; kind: 0 | 1; midi: number; vel: number };
+  const events: Ev[] = [];
   const baseMidi = 48 + keyRoot; // C3..B3 zone
   progression.forEach((d, i) => {
     const tick = i * tpq;
@@ -403,13 +402,23 @@ export function buildMidiFile(opts: {
     const rootOff = ch.steps[d];
     const quality = CHORD_QUALITIES.find((q) => q.id === ch.qualities[d])!;
     quality.formula.forEach((iv) => {
-      pushNote(tick, baseMidi + rootOff + iv, Math.floor(tpq * 0.9), 80, last);
+      const midi = baseMidi + rootOff + iv;
+      events.push({ tick, kind: 0, midi, vel: 80 });
+      events.push({ tick: tick + Math.floor(tpq * 0.9), kind: 1, midi, vel: 0x40 });
     });
     const m = melody[i];
     if (m != null && steps[m] != null) {
-      pushNote(tick, baseMidi + steps[m] + 24, Math.floor(tpq * 0.85), 100, last);
+      const midi = baseMidi + steps[m] + 24;
+      events.push({ tick, kind: 0, midi, vel: 100 });
+      events.push({ tick: tick + Math.floor(tpq * 0.85), kind: 1, midi, vel: 0x40 });
     }
   });
+  events.sort((a, b) => a.tick - b.tick || a.kind - b.kind || a.midi - b.midi);
+  let lastTick = 0;
+  for (const e of events) {
+    track.push(...varLen(e.tick - lastTick), e.kind === 0 ? 0x90 : 0x80, e.midi, e.vel);
+    lastTick = e.tick;
+  }
   track.push(0x00, 0xff, 0x2f, 0x00);
   const header = [0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x01, (tpq >> 8) & 0xff, tpq & 0xff];
   const len = track.length;

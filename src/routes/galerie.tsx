@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Globe } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { Page, Title } from "@/features/page";
@@ -43,6 +43,19 @@ function GaleriePage() {
   const [mine, setMine] = useState<Set<string>>(new Set());
   const [taken, setTaken] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  // Garde anti-chevauchement : un seul Écouter à la fois.
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const playTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (playTimer.current !== null) window.clearTimeout(playTimer.current);
+  }, []);
+  const listen = (p: GalleryPiece) => {
+    if (playingId !== null) return;
+    setPlayingId(p.id);
+    void playPiece(p);
+    if (playTimer.current !== null) window.clearTimeout(playTimer.current);
+    playTimer.current = window.setTimeout(() => setPlayingId(null), p.progression.length * 800 + 1200);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -128,8 +141,8 @@ function GaleriePage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={() => void playPiece(p)}>
-                    {t("gal.listen")}
+                  <Button variant="outline" onClick={() => listen(p)} disabled={playingId !== null}>
+                    {playingId === p.id ? "…" : t("gal.listen")}
                   </Button>
                   {userId && !isMine && (
                     <Button

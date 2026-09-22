@@ -150,6 +150,13 @@ export default defineConfig(({ command, isPreview }) => ({
     host: "0.0.0.0",
     port: 8080,
     strictPort: true,
+    // Machine-written directories must never trigger HMR: the loop system
+    // rewrites `.opencode/` state every few seconds and QA captures land in
+    // `screenshots/` — without this, every write broadcasts a full-reload
+    // and the preview refreshes itself in a loop.
+    watch: {
+      ignored: ["**/.opencode/**", "**/screenshots/**", "**/attachments/**"],
+    },
   },
   preview: {
     host: "127.0.0.1",

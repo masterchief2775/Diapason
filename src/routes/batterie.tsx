@@ -7,7 +7,7 @@ import { Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { Recap } from "@/features/quiz-block";
 import { playDrum, resumeAudio } from "@/lib/audio";
-import { GROOVES, GROOVE_BARS, playDemoFill, type Groove } from "@/lib/grooves";
+import { GROOVES, GROOVE_BARS, type Groove } from "@/lib/grooves";
 import { shuffle } from "@/lib/music";
 import { useProgress } from "@/lib/progress";
 import { useLang, useT } from "@/lib/i18n";
@@ -123,6 +123,12 @@ function DrumQuiz() {
   const [round, setRound] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const lock = useRef(false);
+  const timer = useRef<number | null>(null);
+
+  // Quitter pendant le flash : pas de score/XP appliqués après démontage.
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+  }, []);
 
   const playTarget = async (g: Groove) => {
     const ctx = await resumeAudio();
@@ -149,14 +155,14 @@ function DrumQuiz() {
     const ok = g.id === target.id;
     if (ok) setScore((x) => x + 1);
     setPicked(g.id);
-    window.setTimeout(() => {
+    timer.current = window.setTimeout(() => {
       setPicked(null);
       const finalScore = score + (ok ? 1 : 0);
       if (round + 1 >= ROUNDS) {
         const pct = Math.round((finalScore / ROUNDS) * 100);
         setScoreStore("batterie", pct);
-        recordBest("batterie", finalScore);
-        addXp(pct >= 60 ? 30 : 10, "feed.game");
+        // 4 manches : paliers 0/25/50/75/100, donc le seuil effectif est 75 %.
+        if (recordBest("batterie", finalScore) && finalScore > 0) addXp(pct >= 75 ? 30 : 10, "feed.game");
       } else {
         const next = GROOVES[Math.floor(Math.random() * GROOVES.length)];
         setTarget(next);

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock } from "@/features/quiz-block";
-import { DIAGNOSTIC, DIAGNOSTIC_EN, lessonById, lessonText } from "@/lib/curriculum";
+import { DIAGNOSTIC, DIAGNOSTIC_EN, LESSON_ORDER, lessonById, lessonText } from "@/lib/curriculum";
 import { useProgress } from "@/lib/progress";
 import { useLang } from "@/lib/i18n";
 
@@ -14,7 +14,7 @@ function DiagnosticPage() {
   const [pct, setPct] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const setLevel = useProgress((s) => s.setLevel);
-  const completeLesson = useProgress((s) => s.completeLesson);
+  const completed = useProgress((s) => s.completed);
   const nav = useNavigate();
   const lang = useLang();
   const qs = lang === "en" ? DIAGNOSTIC_EN : DIAGNOSTIC;
@@ -63,6 +63,11 @@ function DiagnosticPage() {
   }
 
   const res = levelFor(answers);
+  // Le niveau estimé pointe vers une zone (accords/intervalles) qui peut être
+  // verrouillée : on redirige vers la première leçon non terminée du parcours,
+  // toujours débloquée par construction (préfixe strict).
+  const firstTodo = LESSON_ORDER.find((id) => !completed.includes(id)) ?? "notes";
+  const goId = completed.includes(res.jumpTo) || res.jumpTo === firstTodo ? res.jumpTo : firstTodo;
   return (
     <Page>
       <Title kicker={lang === "en" ? "Diagnostic · result" : "Diagnostic · résultat"} lead={res.advice}>
@@ -72,11 +77,12 @@ function DiagnosticPage() {
         <Button
           onClick={() => {
             setLevel(res.level);
-            if (res.level === "Intermédiaire" || res.level === "Intermediate") completeLesson("notes", 80);
-            nav({ to: "/lecon/$id", params: { id: res.jumpTo } });
+            // Pas de completeLesson ici : le diagnostic oriente, il ne valide
+            // pas une leçon jamais faite (ni son XP).
+            nav({ to: "/lecon/$id", params: { id: goId } });
           }}
         >
-          {lang === "en" ? "Go to" : "Aller à"} « {lessonById(res.jumpTo) ? lessonText(lang, lessonById(res.jumpTo)!).title : res.jumpTo} »
+          {lang === "en" ? "Go to" : "Aller à"} « {lessonById(goId) ? lessonText(lang, lessonById(goId)!).title : goId} »
         </Button>
         <Button variant="outline" onClick={() => nav({ to: "/parcours" })}>
           {lang === "en" ? "See the path" : "Voir le parcours"}

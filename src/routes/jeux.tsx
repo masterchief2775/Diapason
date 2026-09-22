@@ -13,7 +13,8 @@ function GamesLayout() {
   return <GamesHub />;
 }
 
-export const GAMES = [
+/** Catalogue des jeux (interne à la route ; le hub le rend ci-dessous). */
+const GAMES = [
   {
     id: "intervalles",
     icon: "dices",

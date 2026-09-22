@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { BackLink } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { QuizBlock, Recap } from "@/features/quiz-block";
+import type { Timbre } from "@/lib/audio";
 import type { Mcq } from "@/lib/curriculum";
 import { useProgress } from "@/lib/progress";
 import { useLang, useT } from "@/lib/i18n";
@@ -21,6 +22,7 @@ export function InstrumentLesson({
   nextTitle,
   onExit,
   onNext,
+  fanfareTimbre,
 }: {
   lessonId: string;
   kicker: string;
@@ -32,6 +34,7 @@ export function InstrumentLesson({
   nextTitle: string | null;
   onExit: () => void;
   onNext: (() => void) | null;
+  fanfareTimbre?: Timbre;
 }) {
   const t = useT();
   const lang = useLang();
@@ -68,6 +71,7 @@ export function InstrumentLesson({
               if (pct >= 60 && onNext) onNext();
               else onExit();
             }}
+            fanfareTimbre={fanfareTimbre}
             perfect={
               pct >= 60 && nextTitle
                 ? lang === "en" ? `Passed. Next: ${nextTitle}.` : `Validé. Suite : ${nextTitle}.`

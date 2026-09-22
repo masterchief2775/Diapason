@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check, Music2 } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -8,14 +8,22 @@ import { useLang, useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
-    redirect: typeof s.redirect === "string" && s.redirect.startsWith("/") && !s.redirect.startsWith("//") ? s.redirect : undefined,
-  }),
+  validateSearch: (s: Record<string, unknown>): { redirect?: string } => {
+    const r = typeof s.redirect === "string" ? s.redirect : undefined;
+    if (!r || !r.startsWith("/") || r.startsWith("//") || r === "/login" || r.startsWith("/login?") || r.startsWith("/login#")) {
+      return {};
+    }
+    return { redirect: r };
+  },
   component: Login,
 });
 
 function safeRedirect(to: string): string {
-  return to.startsWith("/") && !to.startsWith("//") ? to : "/profil";
+  // Jamais vers /login lui-même (boucle pour un connecté redirigé ici).
+  if (!to.startsWith("/") || to.startsWith("//") || to === "/login" || to.startsWith("/login?") || to.startsWith("/login#")) {
+    return "/profil";
+  }
+  return to;
 }
 
 function Login() {
@@ -56,6 +64,13 @@ function Login() {
         });
         if (error) throw new Error(error.message);
       }
+      // Laisse le store de session lire le cookie frais AVANT de naviguer,
+      // sinon le gate voit encore `null` et rebondit vers /login. Borné :
+      // si le réseau cale, on navigue quand même (le gate tranche ensuite).
+      await Promise.race([
+        authClient.getSession().catch(() => {}),
+        new Promise((r) => window.setTimeout(r, 2500)),
+      ]);
       nav({ to: dest });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("login.error"));
@@ -168,9 +183,6 @@ function Login() {
           </div>
         )}
 
-        <Link to="/" className="mt-1 block text-center text-xs text-subtle hover:text-fg">
-          {t("login.back")}
-        </Link>
         <ul className="m-0 mt-8 grid list-none gap-2 p-0">
           {[t("login.b1"), t("login.b2"), t("login.b3")].map((b) => (
             <li key={b} className="flex items-center justify-center gap-2 text-center text-xs text-subtle">

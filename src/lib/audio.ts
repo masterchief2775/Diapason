@@ -1,7 +1,9 @@
 import { useProgress } from "./progress";
-import { freqToMidi, midiToFreq, renderPianoSamples, renderPluckSamples } from "./synth";
+import { freqToMidi, midiToFreq, renderBassSamples, renderPianoSamples, renderPluckSamples } from "./synth";
 
 export type Instrument = "guitare" | "piano";
+/** Timbre réel du buffer : la basse a sa synthèse dédiée même en mode guitare. */
+export type Timbre = Instrument | "basse";
 export { freqToMidi };
 
 let sharedCtx: AudioContext | null = null;
@@ -59,16 +61,19 @@ function makeImpulse(ctx: AudioContext, seconds: number, decay: number): AudioBu
 
 const bufferCache = new Map<string, AudioBuffer>();
 
-function noteBuffer(ctx: AudioContext, instrument: Instrument, freq: number): AudioBuffer {
-  const key = `${instrument}:${freqToMidi(freq)}:${ctx.sampleRate}`;
+function noteBuffer(ctx: AudioContext, timbre: Timbre, freq: number): AudioBuffer {
+  const key = `${timbre}:${freqToMidi(freq)}:${ctx.sampleRate}`;
   const hit = bufferCache.get(key);
   if (hit) return hit;
   const midi = freqToMidi(freq);
   const exact = midiToFreq(midi);
-  const seconds = instrument === "guitare" ? 2.5 : 3.5;
-  const samples = instrument === "guitare"
-    ? renderPluckSamples(ctx.sampleRate, exact, seconds)
-    : renderPianoSamples(ctx.sampleRate, exact, seconds);
+  const seconds = timbre === "basse" ? 3.0 : timbre === "guitare" ? 2.5 : 3.5;
+  const samples =
+    timbre === "basse"
+      ? renderBassSamples(ctx.sampleRate, exact, seconds)
+      : timbre === "guitare"
+        ? renderPluckSamples(ctx.sampleRate, exact, seconds)
+        : renderPianoSamples(ctx.sampleRate, exact, seconds);
   const buf = ctx.createBuffer(1, samples.length, ctx.sampleRate);
   buf.getChannelData(0).set(samples);
   bufferCache.set(key, buf);
@@ -82,9 +87,10 @@ function playBuffer(
   startTime: number,
   duration: number,
   gainLevel: number,
+  timbre?: Timbre,
 ) {
-  const instrument = useProgress.getState().instrument;
-  const buf = noteBuffer(ctx, instrument, freq);
+  const resolved: Timbre = timbre ?? useProgress.getState().instrument;
+  const buf = noteBuffer(ctx, resolved, freq);
   const src = ctx.createBufferSource();
   src.buffer = buf;
   const exact = midiToFreq(freqToMidi(freq));
@@ -114,8 +120,8 @@ export function freqForOffset(baseNoteIndex: number, semitoneOffset: number): nu
 }
 
 /** Joue une note de l'instrument courant (corde pincée ou piano). */
-export function playTone(ctx: AudioContext, freq: number, startTime: number, duration = 0.9, gainLevel = 0.5) {
-  playBuffer(ctx, freq, startTime, duration, gainLevel);
+export function playTone(ctx: AudioContext, freq: number, startTime: number, duration = 0.9, gainLevel = 0.5, timbre?: Timbre) {
+  playBuffer(ctx, freq, startTime, duration, gainLevel, timbre);
 }
 
 /** Métronome : reste un clic franc (un métronome ne sonne pas comme une guitare). */
@@ -148,19 +154,23 @@ export function playChordNow(keyRoot: number, rootOffset: number, formula: reado
   const instrument = useProgress.getState().instrument;
   const now = ctx.currentTime + 0.02;
   formula.forEach((interval, i) => {
-    const at = instrument === "guitare" ? now + i * 0.022 : now;
-    playTone(ctx, freqForOffset(keyRoot, rootOffset + interval), at, duration, 0.28);
+    // Humanisation : aucune main ne frappe les 6 cordes à la milliseconde
+    // ni à vélocité égale — ±3 ms et ±10 % rendent le strum vivant.
+    const jitter = (Math.random() - 0.5) * 0.006;
+    const vel = 0.28 * (1 - i * 0.04) * (0.9 + Math.random() * 0.2);
+    const at = instrument === "guitare" ? now + i * 0.022 + jitter : now + jitter * 0.3;
+    playTone(ctx, freqForOffset(keyRoot, rootOffset + interval), at, duration, vel);
   });
 }
 
 /** Fanfare de victoire : arpège majeur montant (Do–Mi–Sol–Do). */
-export function playFanfare() {
+export function playFanfare(timbre?: Timbre) {
   try {
     const ctx = getAudioContext();
     if (ctx.state === "suspended") void ctx.resume();
     const now = ctx.currentTime + 0.02;
     [0, 4, 7, 12, 16].forEach((iv, i) => {
-      playTone(ctx, freqForOffset(0, iv), now + i * 0.11, 0.7, 0.4);
+      playTone(ctx, freqForOffset(0, iv), now + i * 0.11, 0.7, 0.4, timbre);
     });
   } catch {
     /* audio indisponible — la fête continue sans son */

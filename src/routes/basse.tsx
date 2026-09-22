@@ -5,7 +5,7 @@ import { BassNeck } from "@/components/bass-neck";
 import { Button, Chip } from "@/components/ui";
 import { Page, Title } from "@/features/page";
 import { Recap } from "@/features/quiz-block";
-import { BASS_PATTERNS, BASS_PC, bassNoteAt, playBassPattern, playBassString, playBassTuning } from "@/lib/bass";
+import { BASS_MIDI, BASS_PATTERNS, BASS_PC, bassNoteAt, playBassPattern, playBassString, playBassTuning } from "@/lib/bass";
 import { SCALES } from "@/lib/music";
 import { useProgress } from "@/lib/progress";
 import { useLang, useNN, useT } from "@/lib/i18n";
@@ -35,7 +35,7 @@ function BassePage() {
         {t("basse.title")}
       </Title>
 
-      <BasseLearnCard completed={completed} scores={scores} lang={lang} />
+      <BasseLearnCard completed={completed} scores={scores} />
 
       <h2 className="mb-1 font-display text-xl">{t("basse.tuning")}</h2>
       <p className="mt-0 mb-3 text-sm text-muted">{t("basse.tuningLead")}</p>
@@ -49,7 +49,8 @@ function BassePage() {
           >
             <span className="font-mono text-[11px] text-subtle">{lang === "en" ? "String" : "Corde"} {4 - s}</span>
             <span className="block font-display text-2xl text-gold">{nn[pc]}</span>
-            <span className="text-xs text-subtle">{t("basse.open")} · E1/A1/D2/G2</span>
+            {/* Nom + octave réels par corde (Mi1, La1…), pas le même texte partout. */}
+            <span className="text-xs text-subtle">{t("basse.open")} · {nn[pc]}{Math.floor(BASS_MIDI[s] / 12) - 1}</span>
           </button>
         ))}
         <button
@@ -120,7 +121,7 @@ function BassePage() {
 
 /* ---------- Carte vers le parcours basse ---------- */
 
-function BasseLearnCard({ completed, scores, lang }: { completed: string[]; scores: Record<string, number>; lang: "fr" | "en" }) {
+function BasseLearnCard({ completed, scores }: { completed: string[]; scores: Record<string, number> }) {
   const t = useT();
   const doneCount = ["basse-role", "basse-notes", "basse-gammes", "basse-groove"].filter((id) => completed.includes(id)).length;
   const exam = scores["basse-examen"] ?? 0;
@@ -170,6 +171,12 @@ function BassQuiz() {
   const [round, setRound] = useState(0);
   const [flash, setFlash] = useState<{ s: number; f: number; ok: boolean } | null>(null);
   const lock = useRef(false);
+  const timer = useRef<number | null>(null);
+
+  // Quitter pendant le flash : pas de score/XP appliqués après démontage.
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+  }, []);
 
   const playTarget = async (pc: number) => {
     // Note demandée jouée corde de La (grave et claire).
@@ -190,15 +197,14 @@ function BassQuiz() {
     const ok = bassNoteAt(s, f) === target;
     if (ok) setScore((x) => x + 1);
     setFlash({ s, f, ok });
-    window.setTimeout(() => {
+    timer.current = window.setTimeout(() => {
       setFlash(null);
       const nextRound = round + 1;
       const finalScore = score + (ok ? 1 : 0);
       if (nextRound >= ROUNDS) {
         const pct = Math.round((finalScore / ROUNDS) * 100);
         setScoreStore("basse", pct);
-        recordBest("basse", finalScore);
-        addXp(pct >= 60 ? 30 : 10, "feed.game");
+        if (recordBest("basse", finalScore) && finalScore > 0) addXp(pct >= 60 ? 30 : 10, "feed.game");
       } else {
         setTarget(Math.floor(Math.random() * 12));
       }
@@ -230,6 +236,7 @@ function BassQuiz() {
           setStarted(true);
         }}
         onBack={() => nav({ to: "/" })}
+        fanfareTimbre="basse"
         perfect={
           pct >= 60
             ? lang === "en"

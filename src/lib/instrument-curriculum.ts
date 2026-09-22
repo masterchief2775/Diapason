@@ -42,6 +42,7 @@ export function instQuestions(lang: Lang, list: InstQuestion[]): Mcq[] {
 /** Déblocage séquentiel dans un mini-parcours (leçon 1 toujours ouverte). */
 export function instUnlocked(order: string[], completed: string[], id: string): boolean {
   const idx = order.indexOf(id);
-  if (idx <= 0) return true;
+  if (idx === 0) return true;
+  if (idx < 0) return false;
   return completed.includes(order[idx - 1]);
 }

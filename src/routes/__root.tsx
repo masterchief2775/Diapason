@@ -24,7 +24,9 @@ function useServiceWorker() {
 }
 
 export const Route = createRootRoute({
-  beforeLoad: async () => ({ sessionUser: await fetchSessionUser() }),
+  // Une session illisible (réseau transitoire) ne doit jamais casser la route :
+  // on dégrade en visiteur, le gate client tranche ensuite (cf. RequireAuth).
+  beforeLoad: async () => ({ sessionUser: await fetchSessionUser().catch(() => null) }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -44,23 +46,25 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  component: () => {
-    useServiceWorker();
-    return (
-      <html lang="fr" suppressHydrationWarning>
-        <head>
-          <HeadContent />
-        </head>
-        <body className="bg-bg text-fg antialiased">
-          <PreviewHostBridge />
-          <AuthProvider>
-            <Shell>
-              <Outlet />
-            </Shell>
-          </AuthProvider>
-          <Scripts />
-        </body>
-      </html>
-    );
-  },
+  component: RootComponent,
 });
+
+function RootComponent() {
+  useServiceWorker();
+  return (
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body className="bg-bg text-fg antialiased">
+        <PreviewHostBridge />
+        <AuthProvider>
+          <Shell>
+            <Outlet />
+          </Shell>
+        </AuthProvider>
+        <Scripts />
+      </body>
+    </html>
+  );
+}

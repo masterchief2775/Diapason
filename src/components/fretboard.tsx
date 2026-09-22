@@ -1,7 +1,7 @@
 import { MARKER_FRETS, FRET_COUNT, noteAt } from "@/lib/music";
 import { stringLabels, useNaming, useNN } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { resumeAudio, playTone, getAudioContext } from "@/lib/audio";
+import { resumeAudio, playTone } from "@/lib/audio";
 
 export type Highlight = { rootIndex: number; steps: readonly number[] };
 
@@ -115,9 +115,4 @@ export function NoteSymbol({ type, size = 34 }: { type: string; size?: number })
       {hasFlag && <path d="M15.5 3 Q23 6 16 13" fill="none" stroke={color} strokeWidth="2" />}
     </svg>
   );
-}
-
-export function playFret(s: number, f: number) {
-  const ctx = getAudioContext();
-  playTone(ctx, 440 * Math.pow(2, (TUNING_OCTAVE[s] + f - 69) / 12), ctx.currentTime, 0.5);
 }

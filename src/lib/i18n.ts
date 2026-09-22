@@ -249,7 +249,7 @@ const TXT: Record<string, Txt> = {
   "xpSrc.ear": { fr: "Oreille (selon score)", en: "Ear training (score-based)" },
   "xpSrc.challenge": { fr: "Défi du jour", en: "Daily challenge" },
   "xpSrc.bass": { fr: "Quiz de la basse (≥ 60 %)", en: "Bass quiz (≥ 60%)" },
-  "xpSrc.drum": { fr: "Quiz de la batterie (≥ 60 %)", en: "Drum quiz (≥ 60%)" },
+  "xpSrc.drum": { fr: "Quiz de la batterie (≥ 75 %)", en: "Drum quiz (≥ 75%)" },
   "xpSrc.piece": { fr: "Pièce au carnet", en: "Journal piece" },
   "xpSrc.next": { fr: "Prochain niveau", en: "Next level" },
 
